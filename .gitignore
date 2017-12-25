@@ -7,7 +7,6 @@
 *.la
 *.lai
 *.so
-*.dll
 *.dylib
 
 # Qt-es
@@ -36,4 +35,3 @@ Makefile*
 
 # QtCtreator CMake
 CMakeLists.txt.user*
-
