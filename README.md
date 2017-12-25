@@ -15,6 +15,8 @@ Command line parameters
 * -b [float] : blend amount
 * -h/--help : Lists command line parameters
 
+You need to at least have an input and output for the app to run. If you also have them, you can add an albedo AOV or albedo and normal AOVs to improve the denoising. All images should be the same resolutions, not meeting this requirement will lead to unexpected results (likely a crash).
+
 ## Examples
 ### Noisy image
 <p align="center">
@@ -25,3 +27,6 @@ Command line parameters
 <p align="center">
   <img src="https://github.com/DeclanRussell/NvidiaAIDenoiser/blob/master/images/denoised_test.png" alt="denoise_test"/>
 </p>
+
+# Licence info
+This has no licence, do whatever you want with it just don't sue me if it breaks something!
