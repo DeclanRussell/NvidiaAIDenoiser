@@ -20,6 +20,7 @@ Command line parameters
 <p align="center">
   <img src="https://github.com/DeclanRussell/NvidiaAIDenoiser/blob/master/images/test.png" alt="test"/>
 </p>
+
 ### Denoised output
 <p align="center">
   <img src="https://github.com/DeclanRussell/NvidiaAIDenoiser/blob/master/images/denoised_test.png" alt="denoise_test"/>
