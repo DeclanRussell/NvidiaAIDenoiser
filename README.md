@@ -10,6 +10,7 @@ These libraries will also need to be copied to the bin directory or add them to 
 ## Usage
 Command line parameters
 * -i [string] : path to input image
+* -o [string] : path to output image
 * -a [string] : path to input albedo AOV
 * -n [string] : path to input normal AOV
 * -b [float] : blend amount

@@ -53,6 +53,7 @@ int main(int argc, char *argv[])
         {
             std::cout<<"Command line parameters"<<std::endl;
             std::cout<<"-i [string] : path to input image"<<std::endl;
+            std::cout<<"-o [string] : path to output image"<<std::endl;
             std::cout<<"-a [string] : path to input albedo AOV"<<std::endl;
             std::cout<<"-n [string] : path to input normal AOV"<<std::endl;
             std::cout<<"-b [float] : blend amount"<<std::endl;
