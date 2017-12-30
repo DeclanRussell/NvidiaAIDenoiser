@@ -6,7 +6,7 @@ This is a simple implementation of NVidia AI denoiser. Unfortunately this curren
 * cudnn64_7.dll
 * cudart64_90.dll
 
-These libraries will also need to be copied to the bin directory or add them to your path to run the app. You may also need to update your driver as I did.
+These libraries will also need to be copied to the bin directory or add them to your path to run the app. The scons build will copy these from the contrib to the bin for you. You may also need to update your driver as I did.
 ## Usage
 Command line parameters
 * -i [string] : path to input image
