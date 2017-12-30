@@ -8,6 +8,19 @@
 *.lai
 *.so
 *.dylib
+*.obj
+
+/obj
+
+# Optix libs
+bin/cudart64_90.dll
+bin/cudnn64_7.dll
+bin/optix_denoiser.dll
+bin/optix.1.dll
+contrib/optix/bin/cudart64_90.dll
+contrib/optix/bin/cudnn64_7.dll
+contrib/optix/bin/optix_denoiser.dll
+contrib/optix/bin/optix.1.dll
 
 # Qt-es
 

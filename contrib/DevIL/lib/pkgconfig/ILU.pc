@@ -1,0 +1,13 @@
+prefix=C:/Program Files/DevIL
+exec_prefix=${prefix}
+includedir=${prefix}/include
+libdir=${exec_prefix}/lib
+
+Name: ILU
+Description: Developer's Image Library - ILU part (image library utilities)
+Version: 
+URL: http://openil.sourceforge.net
+Requires: IL
+Cflags: -I${includedir}
+Libs: -L${libdir} -lILU
+Libs.private: -lIL

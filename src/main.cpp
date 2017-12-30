@@ -1,15 +1,42 @@
-#include <QImage>
+
 #include <optix_world.h>
 #include <iostream>
+#include <IL/il.h>
+#include <IL/ilu.h>
+#include <stdio.h>
+
+// Our global image handles
+ILuint input_beauty;
+ILuint input_normal;
+ILuint input_albedo;
+ILuint out_image;
+
+void cleanup()
+{
+    ilDeleteImages(1, &input_beauty);
+    ilDeleteImages(1, &input_normal);
+    ilDeleteImages(1, &input_albedo);
+    ilDeleteImages(1, &out_image);
+    ilShutDown();
+}
 
 int main(int argc, char *argv[])
 {
     std::cout<<"Launching Nvidia AI Denoiser command line app v1.0"<<std::endl;
     std::cout<<"Created by Declan Russell (25/12/2017 ~ Merry Christmas!)"<<std::endl;
 
-    QImage input_beauty;
-    QImage input_normal;
-    QImage input_albedo;
+    ilInit();
+    iluInit();
+
+    ilGenImages(1, &input_beauty);
+    ilGenImages(1, &input_normal);
+    ilGenImages(1, &input_albedo);
+    ilGenImages(1, &out_image);
+
+    ILboolean b_loaded, n_loaded, a_loaded;
+    b_loaded = n_loaded = a_loaded = false;
+
+    // Pass our command line args
     std::string out_path;
     float blend = 0.f;
     for (int i=1; i<argc; i++)
@@ -19,22 +46,40 @@ int main(int argc, char *argv[])
         {
             i++;
             std::string path( argv[i] );
-            input_beauty = QImage(path.c_str());
+            ilBindImage(input_beauty);
+            b_loaded = ilLoadImage(path.c_str());
             std::cout<<"Input image: "<<path<<std::endl;
+            if (b_loaded)
+                std::cout<<"Loaded successfully"<<std::endl;
+            else
+                std::cout<<"Failed to load"<<std::endl;
+            iluFlipImage();
         }
         else if (arg == "-n")
         {
             i++;
             std::string path( argv[i] );
-            input_normal = QImage(path.c_str());
+            ilBindImage(input_normal);
+            n_loaded = ilLoadImage(path.c_str());
             std::cout<<"Normal image: "<<path<<std::endl;
+            if (n_loaded)
+                std::cout<<"Loaded successfully"<<std::endl;
+            else
+                std::cout<<"Failed to load"<<std::endl;
+            iluFlipImage();
         }
         else if (arg == "-a")
         {
             i++;
             std::string path( argv[i] );
-            input_albedo = QImage(path.c_str());
+            ilBindImage(input_albedo);
+            a_loaded = ilLoadImage(path.c_str());
             std::cout<<"Albedo image: "<<path<<std::endl;
+            if (a_loaded)
+                std::cout<<"Loaded successfully"<<std::endl;
+            else
+                std::cout<<"Failed to load"<<std::endl;
+            iluFlipImage();
         }
         else if(arg == "-o")
         {
@@ -60,80 +105,103 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (input_beauty.isNull())
+    if (!b_loaded)
     {
-        std::cerr<<"No input image could be loaded";
+        std::cerr<<"No input image could be loaded"<<std::endl;
+        cleanup();
         return EXIT_FAILURE;
     }
 
-    if (!input_normal.isNull() && input_albedo.isNull())
+    if (n_loaded && !a_loaded)
     {
-        std::cerr<<"You cannot use a normal AOV without an albedo";
+        std::cerr<<"You cannot use a normal AOV without an albedo"<<std::endl;
+        cleanup();
         return EXIT_FAILURE;
     }
 
-    // Get the file extension
-    int x = out_path.find_last_of(".");
+    // Check for a file extension
+    int x = (int)out_path.find_last_of(".");
     x++;
     const char* ext_c = out_path.c_str()+x;
     std::string ext(ext_c);
     if (!ext.size())
     {
-        std::cerr<<"No output file extension";
+        std::cerr<<"No output file extension"<<std::endl;
+        cleanup();
         return EXIT_FAILURE;
     }
 
-    int width, height, normal_width, normal_height;
-    width = input_beauty.width();
-    height = input_beauty.height();
-    normal_width = normal_height = 0;
-    if (!input_albedo.isNull())
+    // Prepare our image data
+    ilBindImage(input_beauty);
+    int b_width = ilGetInteger(IL_IMAGE_WIDTH);
+    int b_height = ilGetInteger(IL_IMAGE_HEIGHT);
+    ilConvertImage(IL_RGBA, IL_FLOAT);
+    int bpp = ilGetInteger((IL_IMAGE_BPP));
+
+    int a_width = 0;
+    int a_height = 0;
+    if (a_loaded)
     {
-        normal_width = input_normal.width();
-        normal_height = input_normal.height();
+        ilBindImage(input_albedo);
+        a_width = ilGetInteger(IL_IMAGE_WIDTH);
+        a_height = ilGetInteger(IL_IMAGE_HEIGHT);
+        if (a_width != b_width || a_height != b_height)
+        {
+            std::cerr<<"Aldedo image not same resolution as beauty"<<std::endl;
+            cleanup();
+            return EXIT_FAILURE;
+        }
+        ilConvertImage(IL_RGBA, IL_FLOAT);
     }
 
-    QImage out_image(width, height, input_beauty.format());
+    int n_width = 0;
+    int n_height = 0;
+    if (n_loaded)
+    {
+        ilBindImage(input_normal);
+        n_width = ilGetInteger(IL_IMAGE_WIDTH);
+        n_height = ilGetInteger(IL_IMAGE_HEIGHT);
+        if (n_width != b_width || n_height != b_height)
+        {
+            std::cerr<<"Normal image not same resolution as beauty"<<std::endl;
+            cleanup();
+            return EXIT_FAILURE;
+        }
+        ilConvertImage(IL_RGBA, IL_FLOAT);
+    }
 
+
+    // Create our optix context and image buffers
     optix::Context optix_context = optix::Context::create();
-    optix::Buffer beauty_buffer = optix_context->createBuffer(RT_BUFFER_INPUT_OUTPUT, RT_FORMAT_FLOAT4, width, height);
-    optix::Buffer albedo_buffer = optix_context->createBuffer(RT_BUFFER_INPUT_OUTPUT, RT_FORMAT_FLOAT4, input_albedo.width(), input_albedo.height());
-    optix::Buffer normal_buffer = optix_context->createBuffer(RT_BUFFER_INPUT_OUTPUT, RT_FORMAT_FLOAT4, normal_width, normal_height);
-    optix::Buffer out_buffer = optix_context->createBuffer(RT_BUFFER_INPUT_OUTPUT, RT_FORMAT_FLOAT4, width, height);
+    optix::Buffer beauty_buffer = optix_context->createBuffer(RT_BUFFER_INPUT_OUTPUT, RT_FORMAT_FLOAT4, b_width, b_height);
+    optix::Buffer albedo_buffer = optix_context->createBuffer(RT_BUFFER_INPUT_OUTPUT, RT_FORMAT_FLOAT4, a_width, a_height);
+    optix::Buffer normal_buffer = optix_context->createBuffer(RT_BUFFER_INPUT_OUTPUT, RT_FORMAT_FLOAT4, n_width, n_height);
+    optix::Buffer out_buffer = optix_context->createBuffer(RT_BUFFER_INPUT_OUTPUT, RT_FORMAT_FLOAT4, b_width, b_height);
 
-    optix::float4* ptr = (optix::float4*)beauty_buffer->map();
-    for(int y=0; y<height; y++)
-    for(int x=0; x<width; x++)
-    {
-        QColor c = input_beauty.pixelColor(x,y);
-        ptr[y*width+x] = optix::make_float4(c.redF(), c.greenF(), c.blueF(), c.alphaF());
-    }
+
+    // Copy all our image data to the gpu buffers
+    ilBindImage(input_beauty);
+    ILubyte* data = ilGetData();
+    memcpy(beauty_buffer->map(), data, sizeof(float) * 4 * b_width * b_height);
     beauty_buffer->unmap();
 
-    if (!input_albedo.isNull())
+    if (a_loaded)
     {
-        ptr = (optix::float4*)albedo_buffer->map();
-        for(int y=0; y<height; y++)
-        for(int x=0; x<width; x++)
-        {
-            QColor c = input_albedo.pixelColor(x,y);
-            ptr[y*width+x] = optix::make_float4(c.redF(), c.greenF(), c.blueF(), c.alphaF());
-        }
+        ilBindImage(input_albedo);
+        ILubyte* data = ilGetData();
+        memcpy(albedo_buffer->map(), data, sizeof(float) * 4 * b_width * b_height);
         albedo_buffer->unmap();
     }
 
-    if (!input_albedo.isNull() && !input_normal.isNull())
+    if (a_loaded && n_loaded)
     {
-        ptr = (optix::float4*)normal_buffer->map();
-        for(int y=0; y<height; y++)
-        for(int x=0; x<width; x++)
-        {
-            QColor c = input_normal.pixelColor(x,y);
-            ptr[y*width+x] = optix::make_float4(c.redF(), c.greenF(), c.blueF(), c.alphaF());
-        }
+        ilBindImage(input_normal);
+        ILubyte* data = ilGetData();
+        memcpy(normal_buffer->map(), data, sizeof(float) * 4 * b_width * b_height);
         normal_buffer->unmap();
     }
 
+    // Setup the optix denoiser post processing stage
     optix::PostprocessingStage denoiserStage = optix_context->createBuiltinPostProcessingStage("DLDenoiser");
     denoiserStage->declareVariable("input_buffer")->set(beauty_buffer);
     denoiserStage->declareVariable("output_buffer")->set(out_buffer);
@@ -141,45 +209,47 @@ int main(int argc, char *argv[])
     denoiserStage->declareVariable("input_albedo_buffer")->set(albedo_buffer);
     denoiserStage->declareVariable("input_normal_buffer")->set(normal_buffer);
 
+    // Add the denoiser to the new optix command list
     optix::CommandList commandList= optix_context->createCommandList();
-    commandList->appendPostprocessingStage(denoiserStage, width, height);
+    commandList->appendPostprocessingStage(denoiserStage, b_width, b_height);
     commandList->finalize();
 
+    // Compile our context. I'm not sure if this is needed given there is no megakernal?
     optix_context->validate();
     optix_context->compile();
 
+    // Execute denoise
     std::cout<<"Denoising..."<<std::endl;
     commandList->execute();
     std::cout<<"Denoising complete"<<std::endl;
 
-    ptr = (optix::float4*)out_buffer->map();
-    for(int y=0; y<height; y++)
-    for(int x=0; x<width; x++)
-    {
-        optix::float4 v = ptr[y*width+x];
-        // TODO: QImage requires clamped values between 0-1. Ideally we need a better
-        //       image library what can deal with these cases.
-        v = optix::clamp(v, optix::make_float4(0.f,0.f,0.f,0.f), optix::make_float4(1.f,1.f,1.f,1.f));
-        QColor c;
-        c.setRedF(v.x);
-        c.setGreenF(v.y);
-        c.setBlueF(v.z);
-        c.setAlphaF(v.w);
-        out_image.setPixelColor(x, y, c);
-    }
+    // Create our ouput image
+    ilBindImage(out_image);
+    ilTexImage(b_width, b_height, 0, bpp, IL_RGBA, IL_FLOAT, NULL);
+
+    // Copy denoised image back to the cpu
+    ilBindImage(out_image);
+    data = ilGetData();
+    memcpy(data, out_buffer->map(), sizeof(float) * 4 * b_width * b_height);
     out_buffer->unmap();
 
+    // Remove our gpu buffers
     beauty_buffer->destroy();
     normal_buffer->destroy();
     albedo_buffer->destroy();
     optix_context->destroy();
 
+    // If the image already exists delete it
+    remove(out_path.c_str());
+
+    // Save the output image
     std::cout<<"Saving to: "<<out_path<<std::endl;
-    if (out_image.save(out_path.c_str(), ext.c_str()))
+    if (ilSaveImage(out_path.c_str()))
         std::cout<<"Done!"<<std::endl;
     else
-        std::cerr<<"Could not save file"<<std::endl;
+        std::cerr<<"Could not save file "<<out_path<<" ("<<iluErrorString(ilGetError())<<")"<<std::endl;
 
+    cleanup();
     return EXIT_SUCCESS;
 }
 

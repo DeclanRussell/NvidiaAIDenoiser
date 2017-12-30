@@ -6,7 +6,7 @@ This is a simple implementation of NVidia AI denoiser. Unfortunately this curren
 * cudnn64_7.dll
 * cudart64_90.dll
 
-These libraries will also need to be copied to the bin directory or add them to your path to run the app.
+These libraries will also need to be copied to the bin directory or add them to your path to run the app. You may also need to update your driver as I did.
 ## Usage
 Command line parameters
 * -i [string] : path to input image
@@ -31,3 +31,6 @@ You need to at least have an input and output for the app to run. If you also ha
 
 # Licence info
 This has no licence, do whatever you want with it just don't sue me if it breaks something!
+
+# Known issues
+So DevIL seems to have a issue with saving float RGBA images as PNGs so unfortunately in the current version you will not be able to save as PNG.
