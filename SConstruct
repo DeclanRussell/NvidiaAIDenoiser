@@ -5,7 +5,7 @@ DEBUG = ARGUMENTS.get("debug", 0)
 
 CUDA_INCLUDE_PATH = os.environ['CUDA_PATH'] + "/include"
 
-ENV = Environment(CPPPATH = ['.', "include/TheEngine", "./contrib/optix/include", "./contrib/DevIL/include", CUDA_INCLUDE_PATH
+ENV = Environment(CPPPATH = ['.', "./contrib/optix/include", "./contrib/DevIL/include", CUDA_INCLUDE_PATH
 ],
                   CCFLAGS="-std=c++11")
 
