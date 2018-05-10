@@ -1,6 +1,5 @@
-
 /*
- * Copyright (c) 2017 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018 NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA Corporation and its licensors retain all intellectual property and proprietary
  * rights in and to this software, related documentation and any modifications thereto.
@@ -16,10 +15,10 @@
  * LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS, BUSINESS INTERRUPTION, LOSS OF
  * BUSINESS INFORMATION, OR ANY OTHER PECUNIARY LOSS) ARISING OUT OF THE USE OF OR
  * INABILITY TO USE THIS SOFTWARE, EVEN IF NVIDIA HAS BEEN ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGES.
+ * SUCH DAMAGES
  */
 
-/**
+ /**
  * @file   optix_declarations.h
  * @author NVIDIA Corporation
  * @brief  OptiX public API declarations
@@ -205,10 +204,11 @@ typedef enum
 /*! Buffer flags */
 typedef enum
 {
-  RT_BUFFER_GPU_LOCAL            = 0x4, /*!< An @ref RT_BUFFER_INPUT_OUTPUT has separate copies on each device that are not synchronized                               */
-  RT_BUFFER_COPY_ON_DIRTY        = 0x8, /*!< A CUDA Interop buffer will only be synchronized across devices when dirtied by @ref rtBufferMap or @ref rtBufferMarkDirty */
+  RT_BUFFER_GPU_LOCAL            = 0x4,  /*!< An @ref RT_BUFFER_INPUT_OUTPUT has separate copies on each device that are not synchronized                               */
+  RT_BUFFER_COPY_ON_DIRTY        = 0x8,  /*!< A CUDA Interop buffer will only be synchronized across devices when dirtied by @ref rtBufferMap or @ref rtBufferMarkDirty */
+  RT_BUFFER_DISCARD_HOST_MEMORY  = 0x20, /*!< An @ref RT_BUFFER_INPUT for which a synchronize is forced on unmapping from host and the host memory is freed */
   RT_BUFFER_LAYERED              = 0x200000, /*!< Depth specifies the number of layers, not the depth of a 3D array */
-  RT_BUFFER_CUBEMAP              = 0x400000 /*!< Enables creation of cubemaps. If this flag is set, Width must be equal to Height, and Depth must be six. If the @ref RT_BUFFER_LAYERED flag is also set, then Depth must be a multiple of six */
+  RT_BUFFER_CUBEMAP              = 0x400000, /*!< Enables creation of cubemaps. If this flag is set, Width must be equal to Height, and Depth must be six. If the @ref RT_BUFFER_LAYERED flag is also set, then Depth must be a multiple of six */
 } RTbufferflag;
 
 /*! Buffer mapping flags */
@@ -278,6 +278,8 @@ typedef enum
   RT_ERROR_CLUSTER_ALREADY_RUNNING     = 0xB07,   /*!< Cluster is already running   */
   RT_ERROR_INSUFFICIENT_FREE_NODES     = 0xB08,   /*!< Not enough free nodes        */
 
+  RT_ERROR_INVALID_GLOBAL_ATTRIBUTE    = 0xC00,   /*!< Invalid global attribute     */
+
   RT_ERROR_UNKNOWN                     = ~0       /*!< Error unknown                */
 } RTresult;
 
@@ -294,6 +296,7 @@ typedef enum
   RT_DEVICE_ATTRIBUTE_TOTAL_MEMORY,               /*!< Total Memory */
   RT_DEVICE_ATTRIBUTE_TCC_DRIVER,                 /*!< sizeof(int) */
   RT_DEVICE_ATTRIBUTE_CUDA_DEVICE_ORDINAL,        /*!< sizeof(int) */
+  RT_DEVICE_ATTRIBUTE_PCI_BUS_ID                  /*!< PCI Bus Id */
 } RTdeviceattribute;
 
 /*! RemoteDevice attributes */
@@ -321,6 +324,14 @@ typedef enum
   RT_REMOTEDEVICE_STATUS_DISCONNECTED = ~0        /*!< RemoteDevice Status Disconnected */
 } RTremotedevicestatus;
 
+/*! Global attributes */
+typedef enum
+{
+  RT_GLOBAL_ATTRIBUTE_DISPLAY_DRIVER_VERSION_MAJOR=1,                /*!< sizeof(int)    */
+  RT_GLOBAL_ATTRIBUTE_DISPLAY_DRIVER_VERSION_MINOR,                  /*!< sizeof(int)    */
+  RT_GLOBAL_ATTRIBUTE_EXPERIMENTAL_EXECUTION_STRATEGY = 0x10000000   /*!< sizeof(int)    */
+} RTglobalattribute;
+
 /*! Context attributes */
 typedef enum
 {
@@ -329,6 +340,8 @@ typedef enum
   RT_CONTEXT_ATTRIBUTE_USED_HOST_MEMORY,                     /*!< sizeof(RTsize) */
   RT_CONTEXT_ATTRIBUTE_GPU_PAGING_ACTIVE,                    /*!< sizeof(int)    */
   RT_CONTEXT_ATTRIBUTE_GPU_PAGING_FORCED_OFF,                /*!< sizeof(int)    */
+  RT_CONTEXT_ATTRIBUTE_DISK_CACHE_ENABLED,                   /*!< sizeof(bool)   */
+  RT_CONTEXT_ATTRIBUTE_PREFER_FAST_RECOMPILES,               /*!< sizeof(int)    */
   RT_CONTEXT_ATTRIBUTE_AVAILABLE_DEVICE_MEMORY = 0x10000000  /*!< sizeof(RTsize) */
 } RTcontextattribute;
 

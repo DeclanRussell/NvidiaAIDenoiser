@@ -1,40 +1,29 @@
 
 #include <optix_world.h>
 #include <iostream>
-#include <IL/il.h>
-#include <IL/ilu.h>
+#include "OpenImageIO\imageio.h"
+#include "OpenImageIO\imagebuf.h"
 #include <stdio.h>
 #include <exception>
 
 // Our global image handles
-ILuint input_beauty;
-ILuint input_normal;
-ILuint input_albedo;
-ILuint out_image;
+OIIO::ImageBuf* input_beauty = nullptr;
+OIIO::ImageBuf* input_albedo = nullptr;
+OIIO::ImageBuf* input_normal = nullptr;
 
 void cleanup()
 {
-    ilDeleteImages(1, &input_beauty);
-    ilDeleteImages(1, &input_normal);
-    ilDeleteImages(1, &input_albedo);
-    ilDeleteImages(1, &out_image);
-    ilShutDown();
+    if (input_beauty) delete input_beauty;
+    if (input_albedo) delete input_albedo;
+    if (input_normal) delete input_normal;
 }
 
 int main(int argc, char *argv[])
 {
-    std::cout<<"Launching Nvidia AI Denoiser command line app v1.1"<<std::endl;
+    std::cout<<"Launching Nvidia AI Denoiser command line app v2.0"<<std::endl;
     std::cout<<"Created by Declan Russell (25/12/2017 ~ Merry Christmas!)"<<std::endl;
 
-    ilInit();
-    iluInit();
-
-    ilGenImages(1, &input_beauty);
-    ilGenImages(1, &input_normal);
-    ilGenImages(1, &input_albedo);
-    ilGenImages(1, &out_image);
-
-    ILboolean b_loaded, n_loaded, a_loaded;
+    bool b_loaded, n_loaded, a_loaded;
     b_loaded = n_loaded = a_loaded = false;
 
     // Pass our command line args
@@ -47,70 +36,58 @@ int main(int argc, char *argv[])
         {
             i++;
             std::string path( argv[i] );
-            ilBindImage(input_beauty);
-            b_loaded = ilLoadImage(path.c_str());
             std::cout<<"Input image: "<<path<<std::endl;
-            if (b_loaded)
+            input_beauty = new OIIO::ImageBuf(path);
+            if (input_beauty->init_spec(path, 0, 0))
+            {
                 std::cout<<"Loaded successfully"<<std::endl;
+                b_loaded = true;
+            }
             else
             {
                 std::cout<<"Failed to load input image"<<std::endl;
-                ILenum error = ilGetError();
-                const char* str;
-                while (error != IL_NO_ERROR)
-                {
-                    str = iluErrorString(error);
-                    std::cout<<"[DevIL]: "<<str<<std::endl;
-                    error = ilGetError();
-                }
+                std::cout<<"[OIIO]: "<<input_beauty->geterror()<<std::endl;
+                cleanup();
+                return EXIT_FAILURE;
             }
-            iluFlipImage();
         }
         else if (arg == "-n")
         {
             i++;
             std::string path( argv[i] );
-            ilBindImage(input_normal);
-            n_loaded = ilLoadImage(path.c_str());
             std::cout<<"Normal image: "<<path<<std::endl;
-            if (n_loaded)
+            input_normal = new OIIO::ImageBuf(path);
+            if (input_normal->init_spec(path, 0, 0))
+            {
                 std::cout<<"Loaded successfully"<<std::endl;
+                n_loaded = true;
+            }
             else
             {
                 std::cout<<"Failed to load normal image"<<std::endl;
-                ILenum error = ilGetError();
-                const char* str;
-                while (error != IL_NO_ERROR)
-                {
-                    str = iluErrorString(error);
-                    std::cout<<"[DevIL]: "<<str<<std::endl;
-                    error = ilGetError();
-                }
+                std::cout<<"[OIIO]: "<<input_normal->geterror()<<std::endl;
+                cleanup();
+                return EXIT_FAILURE;
             }
-            iluFlipImage();
         }
         else if (arg == "-a")
         {
             i++;
             std::string path( argv[i] );
-            ilBindImage(input_albedo);
-            a_loaded = ilLoadImage(path.c_str());
             std::cout<<"Albedo image: "<<path<<std::endl;
-            if (a_loaded)
+            input_albedo = new OIIO::ImageBuf(path);
+            if (input_albedo->init_spec(path, 0, 0))
+            {
                 std::cout<<"Loaded successfully"<<std::endl;
+                a_loaded = true;
+            }
             else
             {
                 std::cout<<"Failed to load albedo image"<<std::endl;
-                ILenum error = ilGetError();
-                const char* str;
-                while (error != IL_NO_ERROR)
-                {
-                    str = iluErrorString(error);
-                    std::cout<<"[DevIL]: "<<str<<std::endl;
-                    error = ilGetError();
-                }
+                std::cout<<"[OIIO]: "<<input_albedo->geterror()<<std::endl;
+                cleanup();
+                return EXIT_FAILURE;
             }
-            iluFlipImage();
         }
         else if(arg == "-o")
         {
@@ -136,6 +113,7 @@ int main(int argc, char *argv[])
         }
     }
 
+    // Check if a beauty has been loaded
     if (!b_loaded)
     {
         std::cerr<<"No input image could be loaded"<<std::endl;
@@ -143,6 +121,7 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
+    // If a normal AOV is loaded then we also require an albedo AOV
     if (n_loaded && !a_loaded)
     {
         std::cerr<<"You cannot use a normal AOV without an albedo"<<std::endl;
@@ -162,44 +141,45 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    // Prepare our image data
-    ilBindImage(input_beauty);
-    int b_width = ilGetInteger(IL_IMAGE_WIDTH);
-    int b_height = ilGetInteger(IL_IMAGE_HEIGHT);
-    ilConvertImage(IL_RGBA, IL_FLOAT);
-    int bpp = ilGetInteger((IL_IMAGE_BPP));
-
-    int a_width = 0;
-    int a_height = 0;
+    OIIO::ROI beauty_roi, albedo_roi, normal_roi;
+    beauty_roi = OIIO::get_roi_full(input_beauty->spec());
+    int b_width = beauty_roi.width();
+    int b_height = beauty_roi.height();
     if (a_loaded)
     {
-        ilBindImage(input_albedo);
-        a_width = ilGetInteger(IL_IMAGE_WIDTH);
-        a_height = ilGetInteger(IL_IMAGE_HEIGHT);
+        albedo_roi = OIIO::get_roi_full(input_beauty->spec());
+        if (n_loaded)
+            normal_roi = OIIO::get_roi_full(input_beauty->spec());
+    }
+
+    // Check that our feature buffers are the same resolution as our beauty
+    int a_width = (a_loaded) ? albedo_roi.width() : 0;
+    int a_height = (a_loaded) ? albedo_roi.height() : 0;
+    if (a_loaded)
+    {
         if (a_width != b_width || a_height != b_height)
         {
             std::cerr<<"Aldedo image not same resolution as beauty"<<std::endl;
             cleanup();
             return EXIT_FAILURE;
         }
-        ilConvertImage(IL_RGBA, IL_FLOAT);
     }
 
-    int n_width = 0;
-    int n_height = 0;
+    int n_width = (n_loaded) ? normal_roi.width() : 0;
+    int n_height = (n_loaded) ? normal_roi.height() : 0;
     if (n_loaded)
     {
-        ilBindImage(input_normal);
-        n_width = ilGetInteger(IL_IMAGE_WIDTH);
-        n_height = ilGetInteger(IL_IMAGE_HEIGHT);
         if (n_width != b_width || n_height != b_height)
         {
             std::cerr<<"Normal image not same resolution as beauty"<<std::endl;
             cleanup();
             return EXIT_FAILURE;
         }
-        ilConvertImage(IL_RGBA, IL_FLOAT);
     }
+
+    // Get our pixel data
+    std::vector<float> beauty_pixels(b_width * b_height * beauty_roi.nchannels());
+    input_beauty->get_pixels(beauty_roi, OIIO::TypeDesc::FLOAT, &beauty_pixels[0]);
 
     // Catch optix exceptions
     try
@@ -211,26 +191,53 @@ int main(int argc, char *argv[])
         optix::Buffer normal_buffer = optix_context->createBuffer(RT_BUFFER_INPUT_OUTPUT, RT_FORMAT_FLOAT4, n_width, n_height);
         optix::Buffer out_buffer = optix_context->createBuffer(RT_BUFFER_INPUT_OUTPUT, RT_FORMAT_FLOAT4, b_width, b_height);
 
-        // Copy all our image data to the gpu buffers
-        ilBindImage(input_beauty);
-        ILubyte* data = ilGetData();
-        memcpy(beauty_buffer->map(), data, sizeof(float) * 4 * b_width * b_height);
+
+        float* device_ptr = (float*)beauty_buffer->map();
+        unsigned int pixel_idx = 0;
+        for(unsigned int y=0; y<b_height; y++)
+        for(unsigned int x=0; x<b_width; x++)
+        {
+            memcpy(device_ptr, &beauty_pixels[pixel_idx], sizeof(float) * beauty_roi.nchannels());
+            device_ptr += 4;
+            pixel_idx += beauty_roi.nchannels();
+        }
         beauty_buffer->unmap();
+        device_ptr = 0;
 
         if (a_loaded)
         {
-            ilBindImage(input_albedo);
-            ILubyte* data = ilGetData();
-            memcpy(albedo_buffer->map(), data, sizeof(float) * 4 * b_width * b_height);
+            std::vector<float> albedo_pixels(a_width * a_height * albedo_roi.nchannels());
+            input_albedo->get_pixels(albedo_roi, OIIO::TypeDesc::FLOAT, &albedo_pixels[0]);
+
+            device_ptr = (float*)albedo_buffer->map();
+            pixel_idx = 0;
+            for(unsigned int y=0; y<b_height; y++)
+            for(unsigned int x=0; x<b_width; x++)
+            {
+                memcpy(device_ptr, &albedo_pixels[pixel_idx], sizeof(float) * albedo_roi.nchannels());
+                device_ptr += 4;
+                pixel_idx += beauty_roi.nchannels();
+            }
             albedo_buffer->unmap();
+            device_ptr = 0;
         }
 
-        if (a_loaded && n_loaded)
+        if (n_loaded)
         {
-            ilBindImage(input_normal);
-            ILubyte* data = ilGetData();
-            memcpy(normal_buffer->map(), data, sizeof(float) * 4 * b_width * b_height);
+            std::vector<float> normal_pixels(n_width * n_height * normal_roi.nchannels());
+            input_normal->get_pixels(normal_roi, OIIO::TypeDesc::FLOAT, &normal_pixels[0]);
+
+            device_ptr = (float*)normal_buffer->map();
+            pixel_idx = 0;
+            for(unsigned int y=0; y<b_height; y++)
+            for(unsigned int x=0; x<b_width; x++)
+            {
+                memcpy(device_ptr, &normal_pixels[pixel_idx], sizeof(float) * normal_roi.nchannels());
+                device_ptr += 4;
+                pixel_idx += normal_roi.nchannels();
+            }
             normal_buffer->unmap();
+            device_ptr = 0;
         }
 
         // Setup the optix denoiser post processing stage
@@ -255,20 +262,24 @@ int main(int argc, char *argv[])
         commandList->execute();
         std::cout<<"Denoising complete"<<std::endl;
 
-        // Create our ouput image
-        ilBindImage(out_image);
-        ilTexImage(b_width, b_height, 0, bpp, IL_RGBA, IL_FLOAT, NULL);
-
         // Copy denoised image back to the cpu
-        ilBindImage(out_image);
-        data = ilGetData();
-        memcpy(data, out_buffer->map(), sizeof(float) * 4 * b_width * b_height);
+        device_ptr = (float*)out_buffer->map();
+        pixel_idx = 0;
+        for(unsigned int y=0; y<b_height; y++)
+        for(unsigned int x=0; x<b_width; x++)
+        {
+            memcpy(&beauty_pixels[pixel_idx], device_ptr, sizeof(float) * beauty_roi.nchannels());
+            device_ptr += 4;
+            pixel_idx += beauty_roi.nchannels();
+        }
         out_buffer->unmap();
+        device_ptr = 0;
 
         // Remove our gpu buffers
         beauty_buffer->destroy();
         normal_buffer->destroy();
         albedo_buffer->destroy();
+        out_buffer->destroy();
         optix_context->destroy();
                                             
     }                                               
@@ -283,12 +294,19 @@ int main(int argc, char *argv[])
     // If the image already exists delete it
     remove(out_path.c_str());
 
+    // Set our OIIO pixels
+    if (!input_beauty->set_pixels(beauty_roi, OIIO::TypeDesc::FLOAT, &beauty_pixels[0]))
+        std::cerr<<"Something went wrong setting pixels"<<std::endl;
+
     // Save the output image
     std::cout<<"Saving to: "<<out_path<<std::endl;
-    if (ilSaveImage(out_path.c_str()))
+    if (input_beauty->write(out_path))
         std::cout<<"Done!"<<std::endl;
     else
-        std::cerr<<"Could not save file "<<out_path<<" ("<<iluErrorString(ilGetError())<<")"<<std::endl;
+    {
+        std::cerr<<"Could not save file "<<out_path<<std::endl;
+        std::cerr<<"[OIIO]: "<<input_beauty->geterror()<<std::endl;
+    }
 
     cleanup();
     return EXIT_SUCCESS;

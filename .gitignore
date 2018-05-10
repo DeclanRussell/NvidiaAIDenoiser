@@ -15,12 +15,12 @@
 # Optix libs
 bin/cudart64_90.dll
 bin/cudnn64_7.dll
-bin/optix_denoiser.dll
-bin/optix.1.dll
+bin/optix_denoiser.51.dll
+bin/optix.51.dll
 contrib/optix/bin/cudart64_90.dll
 contrib/optix/bin/cudnn64_7.dll
-contrib/optix/bin/optix_denoiser.dll
-contrib/optix/bin/optix.1.dll
+contrib/optix/bin/optix_denoiser.51.dll
+contrib/optix/bin/optix.51.dll
 
 # Qt-es
 

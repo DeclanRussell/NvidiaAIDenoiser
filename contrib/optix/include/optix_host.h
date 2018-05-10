@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2017 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018 NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA Corporation and its licensors retain all intellectual property and proprietary
  * rights in and to this software, related documentation and any modifications thereto.
@@ -16,7 +16,7 @@
  * LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS, BUSINESS INTERRUPTION, LOSS OF
  * BUSINESS INFORMATION, OR ANY OTHER PECUNIARY LOSS) ARISING OUT OF THE USE OF OR
  * INABILITY TO USE THIS SOFTWARE, EVEN IF NVIDIA HAS BEEN ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGES.
+ * SUCH DAMAGES
  */
 
 /**
@@ -147,7 +147,7 @@ extern "C" {
   * @ref rtGetVersion returns in \a version a numerically comparable
   * version number of the current OptiX library.
   *
-  * The encoding for the version number prior to OptiX 4.0.0 is major*1000 + minor*10 + micro.  
+  * The encoding for the version number prior to OptiX 4.0.0 is major*1000 + minor*10 + micro.
   * For versions 4.0.0 and higher, the encoding is major*10000 + minor*100 + micro.
   * For example, for version 3.5.1 this function would return 3051, and for version 4.5.1 it would return 40501.
   *
@@ -168,6 +168,93 @@ extern "C" {
   *
   */
   RTresult RTAPI rtGetVersion(unsigned int* version);
+
+  /**
+  * @brief Set a global attribute
+  *
+  * @ingroup ContextFreeFunctions
+  *
+  * <B>Description</B>
+  *
+  * @ref rtGlobalSetAttribute sets \a p as the value of the global attribute
+  * specified by \a attrib.
+  *
+  * Each attribute can have a different size.  The sizes are given in the following list:
+  *
+  *   - @ref RT_GLOBAL_ATTRIBUTE_EXPERIMENTAL_EXECUTION_STRATEGY          sizeof(int)
+  *
+  * @ref RT_GLOBAL_ATTRIBUTE_EXPERIMENTAL_EXECUTION_STRATEGY is an experimental attribute which sets the execution strategy
+  * used by Optix for the next context to be created.  This attribute may be deprecated in a future release.
+  * Possible values: 0 (legacy default), 1 (compile and link programs separately).
+  *
+  * @param[in]   attrib    Attribute to set
+  * @param[in]   size      Size of the attribute being set
+  * @param[in]   p         Pointer to where the value of the attribute will be copied from.  This must point to at least \a size bytes of memory
+  *
+  * <B>Return values</B>
+  *
+  * Relevant return values:
+  * - @ref RT_SUCCESS
+  * - @ref RT_ERROR_INVALID_GLOBAL_ATTRIBUTE - Can be returned if an unknown attribute was addressed.
+  * - @ref RT_ERROR_INVALID_VALUE - Can be returned if \a size does not match the proper size of the attribute, or if \a p
+  * is \a NULL
+  *
+  * <B>History</B>
+  *
+  * @ref rtGlobalSetAttribute was introduced in OptiX 5.1.
+  *
+  * <B>See also</B>
+  * @ref rtGlobalGetAttribute
+  *
+  */
+  RTresult RTAPI rtGlobalSetAttribute(RTglobalattribute attrib, RTsize size, void* p);
+
+  /**
+  * @brief Returns a global attribute
+  *
+  * @ingroup ContextFreeFunctions
+  *
+  * <B>Description</B>
+  *
+  * @ref rtGlobalGetAttribute returns in \a p the value of the global attribute
+  * specified by \a attrib.
+  *
+  * Each attribute can have a different size. The sizes are given in the following list:
+  *
+  *   - @ref RT_GLOBAL_ATTRIBUTE_EXPERIMENTAL_EXECUTION_STRATEGY        sizeof(int)
+  *   - @ref RT_GLOBAL_ATTRIBUTE_DISPLAY_DRIVER_VERSION_MAJOR           sizeof(unsigned int)
+  *   - @ref RT_GLOBAL_ATTRIBUTE_DISPLAY_DRIVER_VERSION_MINOR           sizeof(unsigend int)
+  *
+  * @ref RT_GLOBAL_ATTRIBUTE_EXPERIMENTAL_EXECUTION_STRATEGY is an experimental setting which sets the execution strategy
+  * used by Optix for the next context to be created.  
+  *
+  * @ref RT_GLOBAL_ATTRIBUTE_DISPLAY_DRIVER_VERSION_MAJOR is an attribute to query the major version of the display driver
+  * found on the system. It's the first number in the driver version displayed as xxx.yy.
+  *
+  * @ref RT_GLOBAL_ATTRIBUTE_DISPLAY_DRIVER_VERSION_MINOR is an attribute to query the minor version of the display
+  * driver found on the system.
+  *
+  * @param[in]   attrib    Attribute to query
+  * @param[in]   size      Size of the attribute being queried.  Parameter \a p must have at least this much memory allocated
+  * @param[out]  p         Return pointer where the value of the attribute will be copied into.  This must point to at least \a size bytes of memory
+  *
+  * <B>Return values</B>
+  *
+  * Relevant return values:
+  * - @ref RT_SUCCESS
+  * - @ref RT_ERROR_INVALID_GLOBAL_ATTRIBUTE - Can be returned if an unknown attribute was addressed.
+  * - @ref RT_ERROR_INVALID_VALUE - Can be returned if \a size does not match the proper size of the attribute, if \a p is
+  * \a NULL, or if \a attribute+ordinal does not correspond to an OptiX device
+  *
+  * <B>History</B>
+  *
+  * @ref rtGlobalGetAttribute was introduced in OptiX 5.1.
+  *
+  * <B>See also</B>
+  * @ref rtGlobalSetAttribute,
+  *
+  */
+  RTresult RTAPI rtGlobalGetAttribute(RTglobalattribute attrib, RTsize size, void* p);
 
   /**
   * @brief Returns the number of OptiX capable devices
@@ -220,6 +307,7 @@ extern "C" {
   *   - @ref RT_DEVICE_ATTRIBUTE_TOTAL_MEMORY                 sizeof(RTsize)
   *   - @ref RT_DEVICE_ATTRIBUTE_TCC_DRIVER                   sizeof(int)
   *   - @ref RT_DEVICE_ATTRIBUTE_CUDA_DEVICE_ORDINAL          sizeof(int)
+  *   - @ref RT_DEVICE_ATTRIBUTE_PCI_BUS_ID                   up to size-1, at most 13 chars
   *
   * @param[in]   ordinal   OptiX device ordinal
   * @param[in]   attrib    Attribute to query
@@ -1320,10 +1408,18 @@ extern "C" {
   *
   * Each attribute can have a different size.  The sizes are given in the following list:
   *
-  *   - @ref RT_CONTEXT_ATTRIBUTE_CPU_NUM_THREADS          sizeof(int)
+  *   - @ref RT_CONTEXT_ATTRIBUTE_CPU_NUM_THREADS             sizeof(int)
+  *   - @ref RT_CONTEXT_ATTRIBUTE_PREFER_FAST_RECOMPILES      sizeof(int)
   *
   * @ref RT_CONTEXT_ATTRIBUTE_CPU_NUM_THREADS sets the number of host CPU threads OptiX
   * can use for various tasks.
+  *
+  * @ref RT_CONTEXT_ATTRIBUTE_PREFER_FAST_RECOMPILES is a hint about scene usage.  By 
+  * default OptiX produces device kernels that are optimized for the current scene.  Such 
+  * kernels generally run faster, but must be recompiled after some types of scene
+  * changes, causing delays.  Setting PREFER_FAST_RECOMPILES to 1 will leave out some 
+  * scene-specific optimizations, producing kernels that generally run slower but are less
+  * sensitive to changes in the scene.
   *
   * @param[in]   context   The context object to be modified
   * @param[in]   attrib    Attribute to set
@@ -1363,6 +1459,7 @@ extern "C" {
   *   - @ref RT_CONTEXT_ATTRIBUTE_CPU_NUM_THREADS          sizeof(int)
   *   - @ref RT_CONTEXT_ATTRIBUTE_USED_HOST_MEMORY         sizeof(RTsize)
   *   - @ref RT_CONTEXT_ATTRIBUTE_AVAILABLE_DEVICE_MEMORY  sizeof(RTsize)
+  *   - @ref RT_CONTEXT_ATTRIBUTE_DISK_CACHE_ENABLED       sizeof(bool)
   *
   * @ref RT_CONTEXT_ATTRIBUTE_MAX_TEXTURE_COUNT queries the maximum number of textures
   * handled by OptiX. For OptiX versions below 2.5 this value depends on the number of
@@ -1417,8 +1514,8 @@ extern "C" {
   * <B>Description</B>
   *
   * @ref rtContextSetDevices specifies a list of hardware devices to be used during
-  * execution of the subsequent trace kernels. Note that the device numbers are 
-  * OptiX device ordinals, which may not be the same as CUDA device ordinals. 
+  * execution of the subsequent trace kernels. Note that the device numbers are
+  * OptiX device ordinals, which may not be the same as CUDA device ordinals.
   * Use @ref rtDeviceGetAttribute with @ref RT_DEVICE_ATTRIBUTE_CUDA_DEVICE_ORDINAL to query the CUDA device
   * corresponding to a particular OptiX device.
   *
@@ -1452,8 +1549,8 @@ extern "C" {
   *
   * <B>Description</B>
   *
-  * @ref rtContextGetDevices retrieves a list of hardware devices used by the context. 
-  * Note that the device numbers are  OptiX device ordinals, which may not be the same as CUDA device ordinals. 
+  * @ref rtContextGetDevices retrieves a list of hardware devices used by the context.
+  * Note that the device numbers are  OptiX device ordinals, which may not be the same as CUDA device ordinals.
   * Use @ref rtDeviceGetAttribute with @ref RT_DEVICE_ATTRIBUTE_CUDA_DEVICE_ORDINAL to query the CUDA device
   * corresponding to a particular OptiX device.
   *
@@ -1619,7 +1716,7 @@ extern "C" {
   *
   * @ref rtContextSetTimeoutCallback sets an application-side callback function
   * \a callback and a time interval \a min_polling_seconds in
-  * seconds. Potentially long-running OptiX API calls such as 
+  * seconds. Potentially long-running OptiX API calls such as
   * @ref rtContextLaunch call the callback function about every
   * \a min_polling_seconds seconds. The core purpose of a timeout callback
   * function is to give the application a chance to do whatever it might need
@@ -1694,7 +1791,7 @@ extern "C" {
   * be unstructured and subject to change with subsequent releases.  The
   * verbosity argument specifies the granularity of these messages.
   *
-  * \a verbosity of 0 disables reporting.  \a callback is ignored in this case. 
+  * \a verbosity of 0 disables reporting.  \a callback is ignored in this case.
   *
   * \a verbosity of 1 enables error messages and important warnings.  This
   * verbosity level can be expected to be efficient and have no significant
@@ -1714,7 +1811,7 @@ extern "C" {
   *
   * @param[in]   context               The context node to be modified
   * @param[in]   callback              The function to be called
-  * @param[in]   verbosity             The verbosity of report messages 
+  * @param[in]   verbosity             The verbosity of report messages
   * @param[in]   cbdata                Pointer to user-defined data that will be sent to the callback.  Can be NULL.
   *
   * <B>Return values</B>
@@ -2191,7 +2288,7 @@ extern "C" {
   *
   * <B>Description</B>
   *
-  * @ref rtTextureSamplerGetId returns a handle to the texture sampler in \a *sampler
+  * @ref rtContextGetTextureSamplerFromId returns a handle to the texture sampler in \a *sampler
   * corresponding to the \a sampler_id supplied.  If \a sampler_id does not map to a valid
   * texture handle, \a *sampler is \a NULL or if \a context is invalid, returns @ref RT_ERROR_INVALID_VALUE.
   *
@@ -4512,7 +4609,7 @@ extern "C" {
   RTresult RTAPI rtTransformGetMatrix(RTtransform transform, int transpose, float* matrix, float* inverse_matrix);
 
   /**
-  * @brief Sets the motion time range for a Transform node 
+  * @brief Sets the motion time range for a Transform node
   *
   * @ingroup TransformNode
   *
@@ -4545,9 +4642,9 @@ extern "C" {
   *
   */
   RTresult RTAPI rtTransformSetMotionRange( RTtransform transform, float timeBegin, float timeEnd );
-                                                                                   
+
   /**
-  * @brief Returns the motion time range associated with a Transform node 
+  * @brief Returns the motion time range associated with a Transform node
   *
   * @ingroup TransformNode
   *
@@ -4578,9 +4675,9 @@ extern "C" {
   *
   */
   RTresult RTAPI rtTransformGetMotionRange( RTtransform transform, float* timeBegin, float* timeEnd );
-                                                                                   
+
   /**
-  * @brief Sets the motion border modes of a Transform node 
+  * @brief Sets the motion border modes of a Transform node
   *
   * @ingroup TransformNode
   *
@@ -4591,17 +4688,17 @@ extern "C" {
   * The arguments are independent, and each has one of the following values:
   *
   * - @ref RT_MOTIONBORDERMODE_CLAMP:
-  *   The transform and the scene under it still exist at times less than timeBegin 
-  *   or greater than timeEnd, with the transform clamped to its values at timeBegin 
+  *   The transform and the scene under it still exist at times less than timeBegin
+  *   or greater than timeEnd, with the transform clamped to its values at timeBegin
   *   or timeEnd, respectively.
   *
   * - @ref RT_MOTIONBORDERMODE_VANISH:
-  *   The transform and the scene under it vanish for times less than timeBegin 
+  *   The transform and the scene under it vanish for times less than timeBegin
   *   or greater than timeEnd.
   *
   * @param[in]   transform   Transform node handle
   * @param[in]   beginMode   Motion border mode at motion range begin
-  * @param[in]   endMode     Motion border mode at motion range end 
+  * @param[in]   endMode     Motion border mode at motion range end
   *
   * <B>Return values</B>
   *
@@ -4621,9 +4718,9 @@ extern "C" {
   *
   */
   RTresult RTAPI rtTransformSetMotionBorderMode( RTtransform transform, RTmotionbordermode beginMode, RTmotionbordermode endMode );
-                                                                                   
+
   /**
-  * @brief Returns the motion border modes of a Transform node 
+  * @brief Returns the motion border modes of a Transform node
   *
   * @ingroup TransformNode
   *
@@ -4633,7 +4730,7 @@ extern "C" {
   *
   * @param[in]   transform   Transform node handle
   * @param[out]  beginMode   Motion border mode at motion time range begin
-  * @param[out]  endMode     Motion border mode at motion time range end 
+  * @param[out]  endMode     Motion border mode at motion time range end
   *
   * <B>Return values</B>
   *
@@ -4655,15 +4752,15 @@ extern "C" {
   *
   */
   RTresult RTAPI rtTransformGetMotionBorderMode( RTtransform transform, RTmotionbordermode* beginMode, RTmotionbordermode* endMode );
-                                                                                   
+
   /**
-  * @brief Sets the motion keys associated with a Transform node 
+  * @brief Sets the motion keys associated with a Transform node
   *
   * @ingroup TransformNode
   *
   * <B>Description</B>
   * @ref rtTransformSetMotionKeys sets a series of key values defining how
-  * \a transform varies with time.  The float values in \a keys are one of the 
+  * \a transform varies with time.  The float values in \a keys are one of the
   * following types:
   *
   * - @ref RT_MOTIONKEYTYPE_MATRIX_FLOAT12
@@ -4674,12 +4771,12 @@ extern "C" {
   *   Each key is a packed 16-float array in this order:
   *     [sx, a, b, pvx, sy, c, pvy, sz, pvz, qx, qy, qz, qw, tx, ty, tz]
   *   The length of \a keys is 16*n.
-  *   
+  *
   *   These are packed components of a scale/shear S, a quaternion R, and a translation T.
   *
-  *   S = [ sx  a  b  pvx ]
-  *       [  * sy  c  pvy ]
-  *       [  *  * sz  pvz ]
+  *   S = [ sx  a  b  pvx ]
+  *       [  * sy  c  pvy ]
+  *       [  *  * sz  pvz ]
   *
   *   R = [ qx, qy, qz, qw ]
   *     where qw = cos(theta/2) and [qx, qy, qz] = sin(theta/2)*normalized_axis.
@@ -4688,12 +4785,12 @@ extern "C" {
   *
   * Removing motion keys:
   *
-  * Passing a single key with \a n == 1, or calling @ref rtTransformSetMatrix, removes any 
-  * motion data from \a transform, and sets its matrix to values derived from the single key.  
+  * Passing a single key with \a n == 1, or calling @ref rtTransformSetMatrix, removes any
+  * motion data from \a transform, and sets its matrix to values derived from the single key.
   *
   * @param[in]   transform   Transform node handle
   * @param[in]   n           Number of motion keys >= 1
-  * @param[in]   type        Type of motion keys 
+  * @param[in]   type        Type of motion keys
   * @param[in]   keys        \a n Motion keys associated with this Transform
   *
   * <B>Return values</B>
@@ -4718,13 +4815,13 @@ extern "C" {
   RTresult RTAPI rtTransformSetMotionKeys( RTtransform transform, unsigned int n, RTmotionkeytype type, const float* keys );
 
   /**
-  * @brief Returns the motion key type associated with a Transform node 
+  * @brief Returns the motion key type associated with a Transform node
   *
   * @ingroup TransformNode
   *
   * <B>Description</B>
   * @ref rtTransformGetMotionKeyType returns the key type from the most recent
-  * call to @ref rtTransformSetMotionKeys, or @ref RT_MOTIONKEYTYPE_NONE if no 
+  * call to @ref rtTransformSetMotionKeys, or @ref RT_MOTIONKEYTYPE_NONE if no
   * keys have been set.
   *
   * @param[in]   transform   Transform node handle
@@ -4752,13 +4849,13 @@ extern "C" {
   RTresult RTAPI rtTransformGetMotionKeyType( RTtransform transform, RTmotionkeytype* type );
 
   /**
-  * @brief Returns the number of motion keys associated with a Transform node 
+  * @brief Returns the number of motion keys associated with a Transform node
   *
   * @ingroup TransformNode
   *
   * <B>Description</B>
   * @ref rtTransformGetMotionKeyCount returns in \a n the number of motion keys associated
-  * with \a transform using @ref rtTransformSetMotionKeys.  Note that the default value 
+  * with \a transform using @ref rtTransformSetMotionKeys.  Note that the default value
   * is 1, not 0, for a transform without motion.
   *
   * @param[in]   transform   Transform node handle
@@ -4784,16 +4881,16 @@ extern "C" {
   *
   */
   RTresult RTAPI rtTransformGetMotionKeyCount( RTtransform transform, unsigned int* n );
-                                                                                   
+
   /**
-  * @brief Returns the motion keys associated with a Transform node 
+  * @brief Returns the motion keys associated with a Transform node
   *
   * @ingroup TransformNode
   *
   * <B>Description</B>
   * @ref rtTransformGetMotionKeys returns in \a keys packed float values for
   * all motion keys.  The \a keys array must be large enough to hold all the keys,
-  * based on the key type returned by @ref rtTransformGetMotionKeyType and the 
+  * based on the key type returned by @ref rtTransformGetMotionKeyType and the
   * number of keys returned by @ref rtTransformGetMotionKeyCount.  A single key
   * consists of either 12 floats (type RT_MOTIONKEYTYPE_MATRIX_FLOAT12) or
   * 16 floats (type RT_MOTIONKEYTYPE_SRT_FLOAT16).
@@ -5585,9 +5682,9 @@ extern "C" {
   * Available in: Trbvh
   * Number of motion steps to build into an acceleration structure that contains
   * motion geometry or motion transforms. Ignored for acceleration structures
-  * built over static nodes. Gives a tradeoff between device memory 
+  * built over static nodes. Gives a tradeoff between device memory
   * and time: if the input geometry or transforms have many motion steps,
-  * then increasing the motion steps in the acceleration structure may result in 
+  * then increasing the motion steps in the acceleration structure may result in
   * faster traversal, at the cost of linear increase in memory usage.
   * Default 2, and clamped >=1.
   *
@@ -6540,12 +6637,12 @@ extern "C" {
   * <B>Description</B>
   * Sets the inclusive motion time range [timeBegin, timeEnd] for \a geometry,
   * where timeBegin <= timeEnd.  The default time range is [0.0, 1.0].  The
-  * time range has no effect unless @ref rtGeometrySetMotionSteps is 
+  * time range has no effect unless @ref rtGeometrySetMotionSteps is
   * called, in which case the time steps uniformly divide the time range.  See
   * @ref rtGeometrySetMotionSteps for additional requirements on the bounds
   * program.
   *
-  * @param[in]   geometry    Geometry node handle 
+  * @param[in]   geometry    Geometry node handle
   * @param[out]  timeBegin   Beginning time value of range
   * @param[out]  timeEnd     Ending time value of range
   *
@@ -6567,7 +6664,7 @@ extern "C" {
   *
   */
   RTresult RTAPI rtGeometrySetMotionRange( RTgeometry geometry, float timeBegin, float timeEnd );
-                                                                                   
+
   /**
   * @brief Returns the motion time range associated with a Geometry node.
   *
@@ -6577,9 +6674,9 @@ extern "C" {
   * @ref rtGeometryGetMotionRange returns the motion time range associated with
   * \a geometry from a previous call to @ref rtGeometrySetMotionRange, or the
   * default values of [0.0, 1.0].
-  * 
   *
-  * @param[in]   geometry    Geometry node handle 
+  *
+  * @param[in]   geometry    Geometry node handle
   * @param[out]  timeBegin   Beginning time value of range
   * @param[out]  timeEnd     Ending time value of range
   *
@@ -6592,7 +6689,7 @@ extern "C" {
   *
   * <B>History</B>
   *
-  * @ref rtGeometryGetMotionRange was introduced in OptiX 5.0. 
+  * @ref rtGeometryGetMotionRange was introduced in OptiX 5.0.
   *
   * <B>See also</B>
   * @ref rtGeometrySetMotionRange
@@ -6601,21 +6698,21 @@ extern "C" {
   *
   */
   RTresult RTAPI rtGeometryGetMotionRange( RTgeometry geometry, float* timeBegin, float* timeEnd );
-                                                                                   
+
   /**
-  * @brief Sets the motion border modes of a Geometry node 
+  * @brief Sets the motion border modes of a Geometry node
   *
   * @ingroup Geometry
   *
   * <B>Description</B>
   * @ref rtGeometrySetMotionBorderMode sets the behavior of \a geometry
-  * outside its motion time range. Options are @ref RT_MOTIONBORDERMODE_CLAMP 
-  * or @ref RT_MOTIONBORDERMODE_VANISH.  See @ref rtTransformSetMotionBorderMode 
+  * outside its motion time range. Options are @ref RT_MOTIONBORDERMODE_CLAMP
+  * or @ref RT_MOTIONBORDERMODE_VANISH.  See @ref rtTransformSetMotionBorderMode
   * for details.
   *
-  * @param[in]   geometry    Geometry node handle 
+  * @param[in]   geometry    Geometry node handle
   * @param[in]   beginMode   Motion border mode at motion range begin
-  * @param[in]   endMode     Motion border mode at motion range end 
+  * @param[in]   endMode     Motion border mode at motion range end
   *
   * <B>Return values</B>
   *
@@ -6626,7 +6723,7 @@ extern "C" {
   *
   * <B>History</B>
   *
-  * @ref rtGeometrySetMotionBorderMode was introduced in OptiX 5.0. 
+  * @ref rtGeometrySetMotionBorderMode was introduced in OptiX 5.0.
   *
   * <B>See also</B>
   * @ref rtGeometryGetMotionBorderMode
@@ -6635,9 +6732,9 @@ extern "C" {
   *
   */
   RTresult RTAPI rtGeometrySetMotionBorderMode( RTgeometry geometry, RTmotionbordermode beginMode, RTmotionbordermode endMode );
-                                                                                   
+
   /**
-  * @brief Returns the motion border modes of a Geometry node 
+  * @brief Returns the motion border modes of a Geometry node
   *
   * @ingroup Geometry
   *
@@ -6645,9 +6742,9 @@ extern "C" {
   * @ref rtGeometryGetMotionBorderMode returns the motion border modes
   * for the time range associated with \a geometry.
   *
-  * @param[in]   geometry    Geometry node handle 
+  * @param[in]   geometry    Geometry node handle
   * @param[out]  beginMode   Motion border mode at motion range begin
-  * @param[out]  endMode     Motion border mode at motion range end 
+  * @param[out]  endMode     Motion border mode at motion range end
   *
   * <B>Return values</B>
   *
@@ -6658,7 +6755,7 @@ extern "C" {
   *
   * <B>History</B>
   *
-  * @ref rtGeometryGetMotionBorderMode was introduced in OptiX 5.0. 
+  * @ref rtGeometryGetMotionBorderMode was introduced in OptiX 5.0.
   *
   * <B>See also</B>
   * @ref rtGeometrySetMotionBorderMode
@@ -6667,14 +6764,14 @@ extern "C" {
   *
   */
   RTresult RTAPI rtGeometryGetMotionBorderMode( RTgeometry geometry, RTmotionbordermode* beginMode, RTmotionbordermode* endMode );
-                                                                                   
+
   /**
-  * @brief Specifies the number of motion steps associated with a Geometry 
+  * @brief Specifies the number of motion steps associated with a Geometry
   *
   * @ingroup Geometry
   *
   * <B>Description</B>
-  * @ref rtGeometrySetMotionSteps sets the number of motion steps associated 
+  * @ref rtGeometrySetMotionSteps sets the number of motion steps associated
   * with \a geometry.  If the value of \a n is greater than 1, then \a geometry
   * must have an associated bounding box program that takes both a primitive index
   * and a motion index as arguments, and computes an aabb at the motion index.
@@ -6683,7 +6780,7 @@ extern "C" {
   * Note that all Geometry has at least one 1 motion step (the default), and
   * Geometry that linearly moves has 2 motion steps.
   *
-  * @param[in]   geometry    Geometry node handle 
+  * @param[in]   geometry    Geometry node handle
   * @param[in]   n           Number of motion steps >= 1
   *
   * <B>Return values</B>
@@ -6695,7 +6792,7 @@ extern "C" {
   *
   * <B>History</B>
   *
-  * @ref rtGeometrySetMotionSteps was introduced in OptiX 5.0. 
+  * @ref rtGeometrySetMotionSteps was introduced in OptiX 5.0.
   *
   * <B>See also</B>
   * @ref rtGeometryGetMotionSteps
@@ -6704,7 +6801,7 @@ extern "C" {
   *
   */
   RTresult RTAPI rtGeometrySetMotionSteps( RTgeometry geometry, unsigned int n );
-                                                                                   
+
   /**
   * @brief Returns the number of motion steps associated with a Geometry node
   *
@@ -6712,10 +6809,10 @@ extern "C" {
   *
   * <B>Description</B>
   * @ref rtGeometryGetMotionSteps returns in \a n the number of motion steps
-  * associated with \a geometry.  Note that the default value is 1, not 0, 
+  * associated with \a geometry.  Note that the default value is 1, not 0,
   * for geometry without motion.
   *
-  * @param[in]   geometry    Geometry node handle 
+  * @param[in]   geometry    Geometry node handle
   * @param[out]  n           Number of motion steps n >= 1
   *
   * <B>Return values</B>
@@ -6727,7 +6824,7 @@ extern "C" {
   *
   * <B>History</B>
   *
-  * @ref rtGeometryGetMotionSteps was introduced in OptiX 5.0. 
+  * @ref rtGeometryGetMotionSteps was introduced in OptiX 5.0.
   *
   * <B>See also</B>
   * @ref rtGeometryGetMotionSteps
@@ -6736,7 +6833,7 @@ extern "C" {
   *
   */
   RTresult RTAPI rtGeometryGetMotionSteps( RTgeometry geometry, unsigned int* n );
-          
+
   /**
   * @brief Sets the bounding box program
   *
@@ -8062,10 +8159,10 @@ extern "C" {
   *
   *  - @ref RT_TEXTURE_READ_ELEMENT_TYPE
   *  - @ref RT_TEXTURE_READ_NORMALIZED_FLOAT
-  *  - @ref RT_TEXTURE_READ_ELEMENT_TYPE_SRGB 
+  *  - @ref RT_TEXTURE_READ_ELEMENT_TYPE_SRGB
   *  - @ref RT_TEXTURE_READ_NORMALIZED_FLOAT_SRGB
   *
-  * @ref RT_TEXTURE_READ_ELEMENT_TYPE_SRGB and @ref RT_TEXTURE_READ_NORMALIZED_FLOAT_SRGB were introduced in OptiX 3.9 
+  * @ref RT_TEXTURE_READ_ELEMENT_TYPE_SRGB and @ref RT_TEXTURE_READ_NORMALIZED_FLOAT_SRGB were introduced in OptiX 3.9
   * and apply sRGB to linear conversion during texture read for 8-bit integer buffer formats.
   * \a readmode controls the returned value of the texture sampler when it is used to sample
   * textures.  @ref RT_TEXTURE_READ_ELEMENT_TYPE will return data of the type of the underlying
@@ -8228,7 +8325,7 @@ extern "C" {
   *
   */
   RTresult RTAPI rtTextureSamplerSetBuffer(RTtexturesampler texturesampler, unsigned int deprecated0, unsigned int deprecated1, RTbuffer buffer);
-    
+
   /**
   * @brief Gets a buffer object handle from a texture sampler
   *
@@ -8329,10 +8426,11 @@ extern "C" {
   * -  @ref RT_BUFFER_COPY_ON_DIRTY
   * -  @ref RT_BUFFER_LAYERED
   * -  @ref RT_BUFFER_CUBEMAP
+  * -  @ref RT_BUFFER_DISCARD_HOST_MEMORY
   *
   * If RT_BUFFER_LAYERED flag is set, buffer depth specifies the number of layers, not the depth of a 3D buffer.
   * If RT_BUFFER_CUBEMAP flag is set, buffer depth specifies the number of cube faces, not the depth of a 3D buffer.
-  * See details in @ref rtBufferSetSize3D 
+  * See details in @ref rtBufferSetSize3D
   *
   * Flags can be used to optimize data transfers between the host and its devices. The flag @ref RT_BUFFER_GPU_LOCAL can only be
   * used in combination with @ref RT_BUFFER_INPUT_OUTPUT. @ref RT_BUFFER_INPUT_OUTPUT and @ref RT_BUFFER_GPU_LOCAL used together specify a buffer
@@ -8343,6 +8441,14 @@ extern "C" {
   * the user can change the buffer's content on that device through the pointer. OptiX must then synchronize the new buffer contents to all devices.
   * These synchronization copies occur at every @ref rtContextLaunch "rtContextLaunch", unless the buffer is created with @ref RT_BUFFER_COPY_ON_DIRTY.
   * In this case, @ref rtBufferMarkDirty can be used to notify OptiX that the buffer has been dirtied and must be synchronized.
+
+  * The flag @ref RT_BUFFER_DISCARD_HOST_MEMORY can only be used in combination with @ref RT_BUFFER_INPUT. The data will be 
+  * synchronized to the devices as soon as the buffer is unmapped from the host using @ref rtBufferUnmap or 
+  * @ref rtBufferUnmapEx and the memory allocated on the host will be deallocated. 
+  * It is preferred to map buffers created with the @ref RT_BUFFER_DISCARD_FLAG using @ref rtBufferMapEx with the 
+  * @ref RT_BUFFER_MAP_WRITE_DISCARD option enabled. If it is mapped using @rtBufferMap or the @ref RT_BUFFER_MAP_WRITE
+  * option instead, the data needs to be synchronized to the host during mapping.
+  * Note that the data that is allocated on the devices will not be deallocated until the buffer is destroyed.
   *
   * Returns @ref RT_ERROR_INVALID_VALUE if \a buffer is \a NULL.
   *
@@ -8834,7 +8940,7 @@ extern "C" {
   *
   * A 1D layered mipmapped buffer is allocated if \a height is 1 and the @ref RT_BUFFER_LAYERED flag was set at buffer creating. The number of layers is determined by the \a depth.
   * A 2D layered mipmapped buffer is allocated if the @ref RT_BUFFER_LAYERED flag was set at buffer creating. The number of layers is determined by the \a depth.
-  * A cubemap mipmapped buffer is allocated if the @ref RT_BUFFER_CUBEMAP flag was set at buffer creating. \a width must be equal to \a height and the number of cube faces is determined by the \a depth, 
+  * A cubemap mipmapped buffer is allocated if the @ref RT_BUFFER_CUBEMAP flag was set at buffer creating. \a width must be equal to \a height and the number of cube faces is determined by the \a depth,
   * it must be six or a multiple of six, if the @ref RT_BUFFER_LAYERED flag was also set.
   * Layered, mipmapped and cubemap buffers are supported only as texture buffers.
   *
@@ -8874,7 +8980,7 @@ extern "C" {
   *
   */
   RTresult RTAPI rtBufferSetSize3D(RTbuffer buffer, RTsize width, RTsize height, RTsize depth);
-      
+
   /**
   * @brief Sets the MIP level count of a buffer
   *
@@ -8883,7 +8989,7 @@ extern "C" {
   * <B>Description</B>
   *
   * @ref rtBufferSetMipLevelCount sets the number of MIP levels to \a levels. The default number of MIP levels is 1.
-  * Fails with @ref RT_ERROR_ALREADY_MAPPED if called on a buffer that is mapped. 
+  * Fails with @ref RT_ERROR_ALREADY_MAPPED if called on a buffer that is mapped.
   *
   * @param[in]   buffer   The buffer to be resized
   * @param[in]   width    The width of the resized buffer
@@ -9162,7 +9268,7 @@ extern "C" {
   * - @ref RT_ERROR_MEMORY_ALLOCATION_FAILED
   *
   * <B>History</B>
-  *  
+  *
   * @ref rtBufferGetSizev was introduced in OptiX 1.0.
   *
   * <B>See also</B>
@@ -9213,7 +9319,7 @@ extern "C" {
   *
   */
   RTresult RTAPI rtBufferGetDimensionality(RTbuffer buffer, unsigned int* dimensionality);
-   
+
   /**
   * @brief Gets the number of mipmap levels of this buffer object
   *
@@ -9920,7 +10026,7 @@ extern "C" {
  **
  ***********************************/
 
-  
+
   /**
   * @brief Creates a new post-processing stage
   *
@@ -9929,7 +10035,7 @@ extern "C" {
   * <B>Description</B>
   *
   * @ref rtPostProcessingStageCreateBuiltin creates a new post-processing stage selected from a list of
-  * pre-defined post-processing stages. The \a context specifies the target context, and should be 
+  * pre-defined post-processing stages. The \a context specifies the target context, and should be
   * a value returned by @ref rtContextCreate.
   * Sets \a *stage to the handle of a newly created stage within \a context.
   *
@@ -10043,7 +10149,7 @@ extern "C" {
   * <B>Description</B>
   *
   * @ref rtPostProcessingStageGetContext queries a stage for its associated context.
-  * \a stage specifies the post-processing stage to query, and should be a value 
+  * \a stage specifies the post-processing stage to query, and should be a value
   * returned by @ref rtPostProcessingStageCreateBuiltin. If both parameters are valid,
   * \a *context is set to the context associated with \a stage. Otherwise, the call
   * has no effect and returns @ref RT_ERROR_INVALID_VALUE.
@@ -10188,7 +10294,7 @@ extern "C" {
    **
    ***********************************/
 
- 
+
   /**
   * @brief Creates a new command list
   *
@@ -10196,7 +10302,7 @@ extern "C" {
   *
   * <B>Description</B>
   *
-  * @ref rtCommandListCreate creates a new command list. The \a context specifies the target 
+  * @ref rtCommandListCreate creates a new command list. The \a context specifies the target
   * context, and should be a value returned by @ref rtContextCreate. The call
   * sets \a *list to the handle of a newly created list within \a context.
   * Returns @ref RT_ERROR_INVALID_VALUE if \a list is \a NULL.
@@ -10206,7 +10312,7 @@ extern "C" {
   * are appended to the list using @ref rtCommandListAppendPostprocessingStage, and @ref
   * rtCommandListAppendLaunch2D, respectively. Commands will be executed in the order they have been
   * appended to the list. Thus later commands can use the results of earlier commands. Note that
-  * all commands added to the created list must be associated with the same \a context. It is 
+  * all commands added to the created list must be associated with the same \a context. It is
   * invalid to mix commands from  different contexts.
   *
   * @param[in]   context     Specifies the rendering context of the command list
@@ -10231,7 +10337,7 @@ extern "C" {
   * @ref rtCommandListFinalize,
   * @ref rtCommandListExecute
   *
-  */    
+  */
   RTresult RTAPI rtCommandListCreate(RTcontext context, RTcommandlist* list);
 
   /**
@@ -10241,7 +10347,7 @@ extern "C" {
   *
   * <B>Description</B>
   *
-  * @ref rtCommandListDestroy destroys a command list from its context and deletes it. After the 
+  * @ref rtCommandListDestroy destroys a command list from its context and deletes it. After the
   * call, \a list is no longer a valid handle. Any stages associated with the command list are not destroyed.
   *
   * @param[in]  list        Handle of the command list to destroy
@@ -10263,7 +10369,7 @@ extern "C" {
   * @ref rtCommandListFinalize,
   * @ref rtCommandListExecute
   *
-  */    
+  */
   RTresult RTAPI rtCommandListDestroy(RTcommandlist list);
 
   /**
@@ -10279,16 +10385,16 @@ extern "C" {
   * The launch_width and launch_height specify the launch dimensions and may be different than the
   * input or output buffers associated with each post-processing stage depending on the requirements
   * of the post-processing stage appended.
-  * It is invalid to call @ref rtCommandListAppendPostprocessingStage after calling @ref 
+  * It is invalid to call @ref rtCommandListAppendPostprocessingStage after calling @ref
   * rtCommandListFinalize.
-  * 
+  *
   * NOTE: A post-processing stage can be added to multiple command lists or added to the same command
   * list multiple times.  Also note that destroying a post-processing stage will invalidate all command
   * lists it was added to.
   *
   * @param[in]  list          Handle of the command list to append to
   * @param[in]  stage         The post-processing stage to append to the command list
-  * @param[in]  launch_width  This is a hint for the width of the launch dimensions to use for this stage. 
+  * @param[in]  launch_width  This is a hint for the width of the launch dimensions to use for this stage.
   *                           The stage can ignore this and use a suitable launch width instead.
   * @param[in]  launch_width  This is a hint for the height of the launch dimensions to use for this stage.
   *                           The stage can ignore this and use a suitable launch height instead.
@@ -10311,7 +10417,7 @@ extern "C" {
   * @ref rtCommandListExecute
   * @ref rtPostProcessingStageCreateBuiltin,
   *
-  */    
+  */
   RTresult RTAPI rtCommandListAppendPostprocessingStage(RTcommandlist list, RTpostprocessingstage stage, RTsize launch_width, RTsize launch_height);
 
   /**
@@ -10346,7 +10452,7 @@ extern "C" {
   * @ref rtCommandListFinalize,
   * @ref rtCommandListExecute
   *
-  */    
+  */
   RTresult RTAPI rtCommandListAppendLaunch2D(RTcommandlist list, unsigned int entry_point_index, RTsize launch_width, RTsize launch_height);
 
   /**
@@ -10356,11 +10462,11 @@ extern "C" {
   *
   * <B>Description</B>
   *
-  * @ref rtCommandListFinalize finalizes the command list. This will do all work necessary to 
+  * @ref rtCommandListFinalize finalizes the command list. This will do all work necessary to
   * prepare the command list for execution. Specificially it will do all work which can be shared
   * between subsequent calls to @ref rtCommandListExecute.
-  * It is invalid to call @ref rtCommandListExecute before calling @ref rtCommandListFinalize. It is 
-  * invalid to call @ref rtCommandListAppendPostprocessingStage or 
+  * It is invalid to call @ref rtCommandListExecute before calling @ref rtCommandListFinalize. It is
+  * invalid to call @ref rtCommandListAppendPostprocessingStage or
   * @ref rtCommandListAppendLaunch2D after calling finalize and will result in an error. Also
   * @ref rtCommandListFinalize can only be called once on each command list.
   *
@@ -10383,7 +10489,7 @@ extern "C" {
   * @ref rtCommandListAppendLaunch2D,
   * @ref rtCommandListExecute
   *
-  */    
+  */
   RTresult RTAPI rtCommandListFinalize(RTcommandlist list);
 
   /**
@@ -10397,7 +10503,7 @@ extern "C" {
   * order in which they were added. Commands can access the results of earlier executed commands.
   * This must be called after calling @rtCommandListFinalize, otherwise an error will be returned
   * and the command list is not executed.
-  * @ref rtCommandListExecute can be called multiple times, but only one call may be active at the 
+  * @ref rtCommandListExecute can be called multiple times, but only one call may be active at the
   * same time. Overlapping calls from multiple threads will result in undefined behavior.
   *
   * @param[in]  list              Handle of the command list to execute
@@ -10419,7 +10525,7 @@ extern "C" {
   * @ref rtCommandListAppendLaunch2D,
   * @ref rtCommandListFinalize,
   *
-  */    
+  */
   RTresult RTAPI rtCommandListExecute(RTcommandlist list);
 
   /**
@@ -10461,4 +10567,3 @@ extern "C" {
 #endif
 
 #endif /* __optix_optix_host_h__ */
-

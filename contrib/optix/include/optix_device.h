@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2017 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018 NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA Corporation and its licensors retain all intellectual property and proprietary
  * rights in and to this software, related documentation and any modifications thereto.
@@ -16,9 +16,9 @@
  * LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS, BUSINESS INTERRUPTION, LOSS OF
  * BUSINESS INFORMATION, OR ANY OTHER PECUNIARY LOSS) ARISING OUT OF THE USE OF OR
  * INABILITY TO USE THIS SOFTWARE, EVEN IF NVIDIA HAS BEEN ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGES.
+ * SUCH DAMAGES
  */
-
+ 
  /**
  * @file   optix_device.h
  * @author NVIDIA Corporation
@@ -375,25 +375,8 @@ template<> struct rtCallableProgramSizeofWrapper<void> { static const size_t val
 #ifdef RT_USE_TEMPLATED_RTCALLABLEPROGRAM
 #  define rtCallableProgram optix::boundCallableProgramId
 #else
-#  if (__CUDA_ARCH__ >= 200)
 #    define rtCallableProgram(return_type, function_name, parameter_list)   \
   rtDeclareVariable(optix::boundCallableProgramId<return_type parameter_list>, function_name,,);
-#  else
-#    define rtCallableProgram(return_type, function_name, parameter_list)   \
-  namespace rti_internal_typeinfo {                                     \
-    __device__ ::rti_internal_typeinfo::rti_typeinfo function_name = { ::rti_internal_typeinfo::_OPTIX_VARIABLE, rtCallableProgramSizeofWrapper<return_type>::value }; \
-  }                                                                     \
-  namespace rti_internal_typename {                                     \
-    __device__ char function_name[] = #return_type;                     \
-  }                                                                     \
-  namespace rti_internal_semantic {                                     \
-    __device__ char function_name[] = ""; /* used to be rt_call, but not needed anymore */ \
-  }                                                                     \
-  namespace rti_internal_annotation {                                   \
-    __device__ char function_name[] = #parameter_list;                  \
-  }                                                                     \
-  __noinline__ __device__ return_type function_name parameter_list { typedef return_type localtype; return localtype(); }
-#  endif
 #endif
 
 
@@ -1341,12 +1324,6 @@ namespace optix {
  *      return multiplier * input_color;
  *    }
  *
- *    #if __CUDA_ARCH__ < 200
- *    __global__ void stub() {
- *       (void) simple_shade( 0, make_float3(0,0,0) );
- *    }
- *    #endif
- *
  * 2. You can't pass pointers to functions or use integers for pointers.  In the first
  *    case CUDA will force the inline of the proxy function removing the call altogether,
  *    and in the case of passing pointers as integers, CUDA will assume that any pointer
@@ -2285,32 +2262,40 @@ static inline __device__ void rtPrintf( const char* fmt, T1 arg1, T2 arg2, T3 ar
 /** @} */
 
 /** @cond */
+#ifdef __clang__
+#define RT_CLANG_EXTERN extern
+#else
+#define RT_CLANG_EXTERN
+#endif
+
 namespace rti_internal_register {
-  __device__ void* reg_bitness_detector;
-  __device__ volatile unsigned long long reg_exception_64_detail0;
-  __device__ volatile unsigned long long reg_exception_64_detail1;
-  __device__ volatile unsigned long long reg_exception_64_detail2;
-  __device__ volatile unsigned long long reg_exception_64_detail3;
-  __device__ volatile unsigned long long reg_exception_64_detail4;
-  __device__ volatile unsigned long long reg_exception_64_detail5;
-  __device__ volatile unsigned long long reg_exception_64_detail6;
-  __device__ volatile unsigned long long reg_exception_64_detail7;
-  __device__ volatile unsigned long long reg_exception_64_detail8;
-  __device__ volatile unsigned long long reg_exception_64_detail9;
-  __device__ volatile unsigned int reg_exception_detail0;
-  __device__ volatile unsigned int reg_exception_detail1;
-  __device__ volatile unsigned int reg_exception_detail2;
-  __device__ volatile unsigned int reg_exception_detail3;
-  __device__ volatile unsigned int reg_exception_detail4;
-  __device__ volatile unsigned int reg_exception_detail5;
-  __device__ volatile unsigned int reg_exception_detail6;
-  __device__ volatile unsigned int reg_exception_detail7;
-  __device__ volatile unsigned int reg_exception_detail8;
-  __device__ volatile unsigned int reg_exception_detail9;
-  __device__ volatile unsigned int reg_rayIndex_x;
-  __device__ volatile unsigned int reg_rayIndex_y;
-  __device__ volatile unsigned int reg_rayIndex_z;
+  RT_CLANG_EXTERN __device__ void* reg_bitness_detector;
+  RT_CLANG_EXTERN __device__ volatile unsigned long long reg_exception_64_detail0;
+  RT_CLANG_EXTERN __device__ volatile unsigned long long reg_exception_64_detail1;
+  RT_CLANG_EXTERN __device__ volatile unsigned long long reg_exception_64_detail2;
+  RT_CLANG_EXTERN __device__ volatile unsigned long long reg_exception_64_detail3;
+  RT_CLANG_EXTERN __device__ volatile unsigned long long reg_exception_64_detail4;
+  RT_CLANG_EXTERN __device__ volatile unsigned long long reg_exception_64_detail5;
+  RT_CLANG_EXTERN __device__ volatile unsigned long long reg_exception_64_detail6;
+  RT_CLANG_EXTERN __device__ volatile unsigned long long reg_exception_64_detail7;
+  RT_CLANG_EXTERN __device__ volatile unsigned long long reg_exception_64_detail8;
+  RT_CLANG_EXTERN __device__ volatile unsigned long long reg_exception_64_detail9;
+  RT_CLANG_EXTERN __device__ volatile unsigned int reg_exception_detail0;
+  RT_CLANG_EXTERN __device__ volatile unsigned int reg_exception_detail1;
+  RT_CLANG_EXTERN __device__ volatile unsigned int reg_exception_detail2;
+  RT_CLANG_EXTERN __device__ volatile unsigned int reg_exception_detail3;
+  RT_CLANG_EXTERN __device__ volatile unsigned int reg_exception_detail4;
+  RT_CLANG_EXTERN __device__ volatile unsigned int reg_exception_detail5;
+  RT_CLANG_EXTERN __device__ volatile unsigned int reg_exception_detail6;
+  RT_CLANG_EXTERN __device__ volatile unsigned int reg_exception_detail7;
+  RT_CLANG_EXTERN __device__ volatile unsigned int reg_exception_detail8;
+  RT_CLANG_EXTERN __device__ volatile unsigned int reg_exception_detail9;
+  RT_CLANG_EXTERN __device__ volatile unsigned int reg_rayIndex_x;
+  RT_CLANG_EXTERN __device__ volatile unsigned int reg_rayIndex_y;
+  RT_CLANG_EXTERN __device__ volatile unsigned int reg_rayIndex_z;
 }
+
+#undef RT_CLANG_EXTERN
 /** @endcond */
 
 

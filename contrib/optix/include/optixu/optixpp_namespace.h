@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2017 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018 NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA Corporation and its licensors retain all intellectual property and proprietary
  * rights in and to this software, related documentation and any modifications thereto.
@@ -16,7 +16,7 @@
  * LIMITATION, DAMAGES FOR LOSS OF BUSINESS PROFITS, BUSINESS INTERRUPTION, LOSS OF
  * BUSINESS INFORMATION, OR ANY OTHER PECUNIARY LOSS) ARISING OUT OF THE USE OF OR
  * INABILITY TO USE THIS SOFTWARE, EVEN IF NVIDIA HAS BEEN ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGES.
+ * SUCH DAMAGES
  */
 
 ///
@@ -599,6 +599,9 @@ namespace optix {
 
     /// Call rtDeviceGetAttribute and return the name of the device
     static std::string getDeviceName(int ordinal);
+
+    /// Call rtDeviceGetAttribute and return the PCI bus id of the device
+    static std::string getDevicePCIBusId(int ordinal);
     
     /// Call rtDeviceGetAttribute and return the desired attribute value
     static void getDeviceAttribute(int ordinal, RTdeviceattribute attrib, RTsize size, void* p);
@@ -768,6 +771,9 @@ namespace optix {
     /// See @ref rtContextGetAttribute
     RTsize getUsedHostMemory() const;
 
+    /// See @ref rtContextGetAttribute
+    bool getPreferFastRecompiles() const;
+
     /// <B>Deprecated in OptiX 4.0</B> See @ref rtContextGetAttribute
     int getGPUPagingActive() const;
 
@@ -781,6 +787,9 @@ namespace optix {
     /// @{
     /// See @ref rtContextSetAttribute
     void setCPUNumThreads(int cpu_num_threads);
+
+    /// See @ref rtContextGetAttribute
+    void setPreferFastRecompiles( bool enabled );
 
     /// <B>Deprecated in OptiX 4.0</B> See @ref rtContextSetAttribute
     void setGPUPagingForcedOff(int gpu_paging_forced_off);
@@ -1982,6 +1991,16 @@ namespace optix {
     return std::string(name);
   }
 
+  inline std::string ContextObj::getDevicePCIBusId(int ordinal)
+  {
+    const RTsize max_string_size = 16;  // at least 13, e.g., "0000:01:00.0" with NULL-terminator
+    char pciBusId[max_string_size];
+    if( RTresult code = rtDeviceGetAttribute(ordinal, RT_DEVICE_ATTRIBUTE_PCI_BUS_ID,
+                                             max_string_size, pciBusId) )
+      throw Exception::makeException( code, 0 );
+    return std::string(pciBusId);
+  }
+
   inline void ContextObj::getDeviceAttribute(int ordinal, RTdeviceattribute attrib, RTsize size, void* p)
   {
     if( RTresult code = rtDeviceGetAttribute(ordinal, attrib, size, p) )
@@ -2384,6 +2403,13 @@ namespace optix {
     return used_mem;
   }
 
+  inline bool ContextObj::getPreferFastRecompiles() const
+  {
+    int enabled;
+    checkError( rtContextGetAttribute( m_context, RT_CONTEXT_ATTRIBUTE_PREFER_FAST_RECOMPILES, sizeof(enabled), &enabled) );
+    return enabled != 0;
+  }
+
   inline int ContextObj::getGPUPagingActive() const
   {
     int gpu_paging_active;
@@ -2410,6 +2436,12 @@ namespace optix {
   inline void ContextObj::setCPUNumThreads(int cpu_num_threads)
   {
     checkError( rtContextSetAttribute( m_context, RT_CONTEXT_ATTRIBUTE_CPU_NUM_THREADS, sizeof(cpu_num_threads), &cpu_num_threads) );
+  }
+
+  inline void ContextObj::setPreferFastRecompiles( bool enabled )
+  {
+    int value = enabled;
+    checkError( rtContextSetAttribute( m_context, RT_CONTEXT_ATTRIBUTE_PREFER_FAST_RECOMPILES, sizeof(value), &value ) );
   }
 
   inline void ContextObj::setGPUPagingForcedOff(int gpu_paging_forced_off)
