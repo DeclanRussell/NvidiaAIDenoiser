@@ -34,5 +34,22 @@ Here is a quick example scene. Here I have only given the application the beauty
   <img src="https://github.com/DeclanRussell/NvidiaAIDenoiser/blob/master/images/denoised_test.png" alt="denoise_test"/>
 </p>
 
+# Simple sequence batch script
+As it has been widely requested here is a very simple batch script for denoising sequences until I have time to implement something proper into the application itself. It will do the most simple denoising without any feature AOVs. Save the following code into a file named Sequence.bat and place it into the directory where your images are saved. Running this script will denoise all files image files that match the chosen file extension in the folder. There are three parameters that you will need to edit in the script,
+
+FILE_EXTENSION – the file extension of your image
+SET PATH_TO_DENOISER – the full directory of the Denoiser.exe
+SET OUTPUT_PREFIX – a prefix which is prepended to the name of the image to create the output name. I.e. with the prefix denoised_ the image test.jpg will become denoised_test.jpg
+
+```
+SET FILE_EXTENSION=jpg
+SET PATH_TO_DENOISER=D:\Projects\NvidiaAIDenoiser\Denoiser_v2.0
+SET OUTPUT_PREFIX=denoised_
+
+for /r %%v in (*.%FILE_EXTENSION%) do %PATH_TO_DENOISER%\Denoiser.exe -i "%%~nv.%FILE_EXTENSION%" -o "%OUTPUT_PREFIX%%%~nv.%FILE_EXTENSION%"
+
+cmd /k
+```
+
 # Licence info
 This has no licence, do whatever you want with it just don't sue me if it breaks something!
