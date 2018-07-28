@@ -29,6 +29,7 @@ int main(int argc, char *argv[])
     // Pass our command line args
     std::string out_path;
     float blend = 0.f;
+    unsigned int hdr = 1;
     for (int i=1; i<argc; i++)
     {
         const std::string arg( argv[i] );
@@ -102,14 +103,22 @@ int main(int argc, char *argv[])
             blend = std::stof(blend_string);
             std::cout<<"Blend amount: "<<blend<<std::endl;
         }
+        else if (arg == "-hdr")
+        {
+            i++;
+            std::string hdr_string( argv[i] );
+            hdr = std::stoi(hdr_string);
+            std::cout<<((hdr) ? "HDR training data enabled" : "HDR training data disabled")<<std::endl;
+        }
         else if (arg == "-h" || arg == "--help")
         {
             std::cout<<"Command line parameters"<<std::endl;
             std::cout<<"-i [string] : path to input image"<<std::endl;
             std::cout<<"-o [string] : path to output image"<<std::endl;
-            std::cout<<"-a [string] : path to input albedo AOV"<<std::endl;
-            std::cout<<"-n [string] : path to input normal AOV"<<std::endl;
-            std::cout<<"-b [float] : blend amount"<<std::endl;
+            std::cout<<"-a [string] : path to input albedo AOV (optional)"<<std::endl;
+            std::cout<<"-n [string] : path to input normal AOV (optional, requires albedo AOV)"<<std::endl;
+            std::cout<<"-b [float] : blend amount (default 0)"<<std::endl;
+            std::cout<<"-hdr [int] : Use HDR training data (default 1)"<<std::endl;
         }
     }
 
@@ -245,6 +254,7 @@ int main(int argc, char *argv[])
         denoiserStage->declareVariable("input_buffer")->set(beauty_buffer);
         denoiserStage->declareVariable("output_buffer")->set(out_buffer);
         denoiserStage->declareVariable("blend")->setFloat(blend);
+        denoiserStage->declareVariable("hdr")->setUint(hdr);
         denoiserStage->declareVariable("input_albedo_buffer")->set(albedo_buffer);
         denoiserStage->declareVariable("input_normal_buffer")->set(normal_buffer);
 

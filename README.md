@@ -14,9 +14,10 @@ You will require an Nvidia driver of at least 390.xx or higher to use the optix 
 Command line parameters
 * -i [string] : path to input image
 * -o [string] : path to output image
-* -a [string] : path to input albedo AOV
-* -n [string] : path to input normal AOV
-* -b [float] : blend amount
+* -a [string] : path to input albedo AOV (optional) 
+* -n [string] : path to input normal AOV (optional, requires albedo AOV) 
+* -b [float] : blend amount (default 0) 
+* -hdr [int] : Use HDR training data (default 1)
 * -h/--help : Lists command line parameters
 
 You need to at least have an input and output for the app to run. If you also have them, you can add an albedo AOV or albedo and normal AOVs to improve the denoising. All images should be the same resolutions, not meeting this requirement will lead to unexpected results (likely a crash).
