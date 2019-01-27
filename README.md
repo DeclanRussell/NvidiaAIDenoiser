@@ -20,19 +20,21 @@ Command line parameters
 * -hdr [int] : Use HDR training data (default 1)
 * -h/--help : Lists command line parameters
 
-You need to at least have an input and output for the app to run. If you also have them, you can add an albedo AOV or albedo and normal AOVs to improve the denoising. All images should be the same resolutions, not meeting this requirement will lead to unexpected results (likely a crash).
+You need to at least have an input and output for the app to run. If you also have them, you can add an albedo AOV or albedo and normal AOVs to improve the denoising. All images should be the same resolutions, not meeting this requirement will lead to unexpected results (likely a crash). 
+
+For best results provide as many of the AOVs as possible to the denoiser. Generally the more information the denoiser has to work with the better. The denoiser also prefers images rendered with a box filter or by using FIS.
 
 ## Examples
-Here is a quick example scene. Here I have only given the application the beauty image. Results would be conciderably improved if feature buffers were also added.
+Here is a quick example scene that uses the images that can be found in the image folder of this repository.
 
 ### Noisy image
 <p align="center">
-  <img src="https://github.com/DeclanRussell/NvidiaAIDenoiser/blob/master/images/test.png" alt="test"/>
+  <img src="https://github.com/DeclanRussell/NvidiaAIDenoiser/blob/master/images/RGBA.png" alt="test"/>
 </p>
 
 ### Denoised output
 <p align="center">
-  <img src="https://github.com/DeclanRussell/NvidiaAIDenoiser/blob/master/images/denoised_test.png" alt="denoise_test"/>
+  <img src="https://github.com/DeclanRussell/NvidiaAIDenoiser/blob/master/images/RGBA_denoised.png" alt="denoise_test"/>
 </p>
 
 # Simple sequence batch script
