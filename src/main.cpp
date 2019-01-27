@@ -6,6 +6,9 @@
 #include <stdio.h>
 #include <exception>
 
+#define DENOISER_MAJOR_VERSION 2
+#define DENOISER_MINOR_VERSION 2
+
 // Our global image handles
 OIIO::ImageBuf* input_beauty = nullptr;
 OIIO::ImageBuf* input_albedo = nullptr;
@@ -18,9 +21,21 @@ void cleanup()
     if (input_normal) delete input_normal;
 }
 
+void printParams()
+{
+    std::cout<<"Command line parameters"<<std::endl;
+    std::cout<<"-i [string] : path to input image"<<std::endl;
+    std::cout<<"-o [string] : path to output image"<<std::endl;
+    std::cout<<"-a [string] : path to input albedo AOV (optional)"<<std::endl;
+    std::cout<<"-n [string] : path to input normal AOV (optional, requires albedo AOV)"<<std::endl;
+    std::cout<<"-b [float] : blend amount (default 0)"<<std::endl;
+    std::cout<<"-hdr [int] : Use HDR training data (default 1)"<<std::endl;
+    std::cout<<"-maxmem [int] : Maximum memory size used by the denoiser in MB"<<std::endl;
+}
+
 int main(int argc, char *argv[])
 {
-    std::cout<<"Launching Nvidia AI Denoiser command line app v2.0"<<std::endl;
+    std::cout<<"Launching Nvidia AI Denoiser command line app v"<<DENOISER_MAJOR_VERSION<<"."<<DENOISER_MINOR_VERSION<<std::endl;
     std::cout<<"Created by Declan Russell (25/12/2017 ~ Merry Christmas!)"<<std::endl;
 
     bool b_loaded, n_loaded, a_loaded;
@@ -30,6 +45,12 @@ int main(int argc, char *argv[])
     std::string out_path;
     float blend = 0.f;
     unsigned int hdr = 1;
+    float maxmem = 0.f;
+    if (argc == 1)
+    {
+        printParams();
+        return EXIT_SUCCESS;
+    }
     for (int i=1; i<argc; i++)
     {
         const std::string arg( argv[i] );
@@ -110,15 +131,16 @@ int main(int argc, char *argv[])
             hdr = std::stoi(hdr_string);
             std::cout<<((hdr) ? "HDR training data enabled" : "HDR training data disabled")<<std::endl;
         }
+        else if (arg == "-maxmem")
+        {
+            i++;
+            std::string maxmem_string( argv[i] );
+            maxmem = float(std::stoi(maxmem_string) * 1ULL<<20);
+            std::cout<<"Maximum denoiser memory set to "<<maxmem<<std::endl;
+        }
         else if (arg == "-h" || arg == "--help")
         {
-            std::cout<<"Command line parameters"<<std::endl;
-            std::cout<<"-i [string] : path to input image"<<std::endl;
-            std::cout<<"-o [string] : path to output image"<<std::endl;
-            std::cout<<"-a [string] : path to input albedo AOV (optional)"<<std::endl;
-            std::cout<<"-n [string] : path to input normal AOV (optional, requires albedo AOV)"<<std::endl;
-            std::cout<<"-b [float] : blend amount (default 0)"<<std::endl;
-            std::cout<<"-hdr [int] : Use HDR training data (default 1)"<<std::endl;
+            printParams();
         }
     }
 
@@ -156,9 +178,9 @@ int main(int argc, char *argv[])
     int b_height = beauty_roi.height();
     if (a_loaded)
     {
-        albedo_roi = OIIO::get_roi_full(input_beauty->spec());
+        albedo_roi = OIIO::get_roi_full(input_albedo->spec());
         if (n_loaded)
-            normal_roi = OIIO::get_roi_full(input_beauty->spec());
+            normal_roi = OIIO::get_roi_full(input_normal->spec());
     }
 
     // Check that our feature buffers are the same resolution as our beauty
@@ -220,12 +242,12 @@ int main(int argc, char *argv[])
 
             device_ptr = (float*)albedo_buffer->map();
             pixel_idx = 0;
-            for(unsigned int y=0; y<b_height; y++)
-            for(unsigned int x=0; x<b_width; x++)
+            for(unsigned int y=0; y<a_height; y++)
+            for(unsigned int x=0; x<a_width; x++)
             {
                 memcpy(device_ptr, &albedo_pixels[pixel_idx], sizeof(float) * albedo_roi.nchannels());
                 device_ptr += 4;
-                pixel_idx += beauty_roi.nchannels();
+                pixel_idx += albedo_roi.nchannels();
             }
             albedo_buffer->unmap();
             device_ptr = 0;
@@ -238,8 +260,8 @@ int main(int argc, char *argv[])
 
             device_ptr = (float*)normal_buffer->map();
             pixel_idx = 0;
-            for(unsigned int y=0; y<b_height; y++)
-            for(unsigned int x=0; x<b_width; x++)
+            for(unsigned int y=0; y<n_height; y++)
+            for(unsigned int x=0; x<n_width; x++)
             {
                 memcpy(device_ptr, &normal_pixels[pixel_idx], sizeof(float) * normal_roi.nchannels());
                 device_ptr += 4;
@@ -255,6 +277,7 @@ int main(int argc, char *argv[])
         denoiserStage->declareVariable("output_buffer")->set(out_buffer);
         denoiserStage->declareVariable("blend")->setFloat(blend);
         denoiserStage->declareVariable("hdr")->setUint(hdr);
+        if (maxmem) denoiserStage->declareVariable("maxmem")->setUint(maxmem);
         denoiserStage->declareVariable("input_albedo_buffer")->set(albedo_buffer);
         denoiserStage->declareVariable("input_normal_buffer")->set(normal_buffer);
 
