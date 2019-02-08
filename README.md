@@ -1,10 +1,9 @@
 # NVidia AI Denoiser command line tool
 
 This is a simple implementation of NVidia AI denoiser. You can find a pre-built windows distribution either on my website [here](https://declanrussell.com/portfolio/nvidia-ai-denoiser/) or in the releases tab of this repro. To build you will need to download optix 5.+ and copy over the following to contrib/optix/bin as they were too big for the repo,
-* optix.51.dll
-* optix_denoiser.51.dll
+* optix.6.0.0.dll
+* optix_denoiser.6.0.0.dll
 * cudnn64_7.dll
-* cudart64_90.dll
 
 These libraries will also need to be copied to the bin directory or add them to your path to run the app. The scons build will copy the required dlls from the contrib to the bin for you. You may also need to update your driver as I did.
 
