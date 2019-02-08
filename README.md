@@ -8,7 +8,7 @@ This is a simple implementation of NVidia AI denoiser. You can find a pre-built 
 
 These libraries will also need to be copied to the bin directory or add them to your path to run the app. The scons build will copy the required dlls from the contrib to the bin for you. You may also need to update your driver as I did.
 
-You will require an Nvidia driver of at least 390.xx or higher to use the optix denoiser.
+You will require an Nvidia driver of at least 418.xx or higher and an Nvidia GPU of Maxwell architecture or newer to use the optix denoiser.
 
 ## Usage
 Command line parameters
@@ -18,6 +18,7 @@ Command line parameters
 * -n [string] : path to input normal AOV (optional, requires albedo AOV) 
 * -b [float] : blend amount (default 0) 
 * -hdr [int] : Use HDR training data (default 1)
+* -maxmem [int] : Maximum memory size used by the denoiser in MB
 * -h/--help : Lists command line parameters
 
 You need to at least have an input and output for the app to run. If you also have them, you can add an albedo AOV or albedo and normal AOVs to improve the denoising. All images should be the same resolutions, not meeting this requirement will lead to unexpected results (likely a crash). 

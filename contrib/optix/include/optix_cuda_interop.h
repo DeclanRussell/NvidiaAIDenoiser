@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2018 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA Corporation and its licensors retain all intellectual property and proprietary
  * rights in and to this software, related documentation and any modifications thereto.
@@ -43,7 +43,7 @@ extern "C" {
   * 
   * <B>Description</B>
   * 
-  * @ref DEPRECATED in OptiX 4.0. Now forwards to @ref rtBufferCreate.
+  * Deprecated in OptiX 4.0. Now forwards to @ref rtBufferCreate.
   *
   * @param[in]   context          The context to create the buffer in
   * @param[in]   bufferdesc       Bitwise \a or combination of the \a type and \a flags of the new buffer

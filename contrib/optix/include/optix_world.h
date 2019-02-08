@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2018 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA Corporation and its licensors retain all intellectual property and proprietary
  * rights in and to this software, related documentation and any modifications thereto.
@@ -58,7 +58,6 @@
 #endif
 #include "optix_gl_interop.h"
 #include "optixu/optixu.h"
-#include "optixu/optixu_traversal.h"
 
 #include "optixu/optixu_vector_types.h"
 #include "optixu/optixu_vector_functions.h"

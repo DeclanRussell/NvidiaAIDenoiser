@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2018 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA Corporation and its licensors retain all intellectual property and proprietary
  * rights in and to this software, related documentation and any modifications thereto.
@@ -117,7 +117,7 @@ extern "C" {
   /**
   * @brief Creates a new texture sampler object from an OpenGL image
   * 
-  * @ingroup Buffer
+  * @ingroup TextureSampler
   * 
   * <B>Description</B>
   * 
@@ -238,7 +238,7 @@ extern "C" {
   /**
   * @brief Gets the OpenGL image object id associated with this texture sampler
   * 
-  * @ingroup Buffer
+  * @ingroup TextureSampler
   * 
   * <B>Description</B>
   * 
@@ -340,7 +340,7 @@ extern "C" {
   /**
   * @brief Declares an OpenGL texture as immutable and accessible by OptiX
   * 
-  * @ingroup Buffer
+  * @ingroup TextureSampler
   * 
   * <B>Description</B>
   * 
@@ -374,7 +374,7 @@ extern "C" {
   /**
   * @brief Declares an OpenGL texture as mutable and inaccessible by OptiX
   * 
-  * @ingroup Buffer
+  * @ingroup TextureSampler
   * 
   * <B>Description</B>
   * 
@@ -413,7 +413,7 @@ extern "C" {
   /**
   * @brief returns the OptiX device number associated with the specified GPU
   * 
-  * @ingroup Buffer
+  * @ingroup ContextFreeFunctions
   * 
   * <B>Description</B>
   * 

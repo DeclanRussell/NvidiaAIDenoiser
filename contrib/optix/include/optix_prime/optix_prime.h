@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2018 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA Corporation and its licensors retain all intellectual property and
  * proprietary rights in and to this software, related documentation and any
@@ -31,7 +31,7 @@
 #ifndef __optix_optix_prime_h__
 #define __optix_optix_prime_h__
 
-#define OPTIX_PRIME_VERSION 50100  /* major =  OPTIX_PRIME_VERSION/10000,        *
+#define OPTIX_PRIME_VERSION 60000  /* major =  OPTIX_PRIME_VERSION/10000,        *
                                     * minor = (OPTIX_PRIME_VERSION%10000)/100,   *
                                     * micro =  OPTIX_PRIME_VERSION%100           */
 

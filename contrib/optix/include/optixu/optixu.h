@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2018 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA Corporation and its licensors retain all intellectual property and proprietary
  * rights in and to this software, related documentation and any modifications thereto.
@@ -447,98 +447,6 @@ extern "C" {
    *index = ~0u;
    return RT_ERROR_INVALID_VALUE;
  }
-
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-  /**
-   * \ingroup rtu
-   *
-   * Create clustered triangle mesh for good memory coherence with paging on.
-   * Vertex, index and material buffers are created and attached to the mesh.
-   * Cluster's bounding box and intersection programs are attached to the mesh.
-   * The intersection program has the following attributes: 
-   *  - @ref rtDeclareVariable(   int, primitive_id, attribute primitive_id, ); 
-   *  - @ref rtDeclareVariable(float3, texcoord, attribute texcoord, ); It is always zero
-   *  - @ref rtDeclareVariable(float3, geometric_normal, attribute geometric_normal, ); 
-   *  - @ref rtDeclareVariable(float3, shading_normal, attribute shading_normal, ); It is equal to geometric_normal
-   *
-   * Created @ref RTgeometry mesh expects there to be placed into a @ref RTgeometryinstance where
-   * the mat_indices specified map into materials attached to the @ref RTgeometryinstance
-   *
-   * In the event of an error, please query the error string from the RTcontext.
-   * 
-   *   \param    context        Context
-   *   \param    usePTX32InHost64 Use 32bit PTX bounding box and intersection programs in 64bit application. Takes effect only with 64bit host.
-   *   \param    mesh           Output geometry
-   *   \param    num_verts      Vertex count
-   *   \param    verts          Vertices (num_verts*float*3) [ v1_x, v1_y, v1_z, v2.x, ... ]
-   *   \param    num_tris       Triangle count
-   *   \param    indices        Vertex indices (num_tris*unsigned*3) [ tri1_index1, tr1_index2, ... ]
-   *   \param    mat_indices    Indices of materials (num_tris*unsigned) [ tri1_mat_index, tri2_mat_index, ... ]
-   */
-  RTresult RTAPI rtuCreateClusteredMesh( RTcontext       context,
-                                         unsigned int    usePTX32InHost64,
-                                         RTgeometry*     mesh,
-                                         unsigned int    num_verts,
-                                         const float*    verts,
-                                         unsigned int    num_tris,
-                                         const unsigned* indices,
-                                         const unsigned* mat_indices);
-
-
-
-  /**
-   * \ingroup rtu
-   *
-   * Create clustered triangle mesh for good memory coherence with paging on.
-   * Buffers for vertices, indices, normals, indices of normals,
-   * texture coordinates, indices of texture coordinates and materials are created and attached to the mesh.
-   * Cluster's bounding box and intersection programs are attached to the mesh.
-   * The intersection program has the following attributes: 
-   *  - @ref rtDeclareVariable(   int, primitive_id, attribute primitive_id, ); 
-   *  - @ref rtDeclareVariable(float3, texcoord, attribute texcoord, ); 
-   *  - @ref rtDeclareVariable(float3, geometric_normal, attribute geometric_normal, ); 
-   *  - @ref rtDeclareVariable(float3, shading_normal, attribute shading_normal, ); 
-   *
-   * Created @ref RTgeometry mesh expects there to be placed into a @ref RTgeometryinstance where
-   * the mat_indices specified map into materials attached to the @ref RTgeometryinstance
-   *
-   * Vertex, normal and texture coordinate buffers can be shared between many geometry objects
-   * 
-   * In the event of an error, please query the error string from the RTcontext.
-   *
-   *   \param    context        Context
-   *   \param    usePTX32InHost64 Use 32bit PTX bounding box and intersection programs in 64bit application. Takes effect only with 64bit host.
-   *   \param    mesh           Output geometry
-   *   \param    num_verts      Vertex count
-   *   \param    verts          Vertices (num_verts*float*3) [ v1_x, v1_y, v1_z, v2.x, ... ]
-   *   \param    num_tris       Triangle count
-   *   \param    indices        Vertex indices (num_tris*unsigned*3) [ tri1_index1, tr1_index2, ... ]
-   *   \param    mat_indices    Indices of materials (num_tris*unsigned) [ tri1_mat_index, tri2_mat_index, ... ]
-   *   \param    norms          Normals (num_norms*float*3) [ v1_x, v1_y, v1_z, v2.x, ... ]
-   *   \param    norm_indices   Indices of vertex normals (num_tris*unsigned*3) [ tri1_norm_index1, tri1_norm_index2 ... ]
-   *   \param    tex_coords     Texture uv coords (num_tex_coords*float*2) [ t1_u, t1_v, t2_u ... ]
-   *   \param    tex_indices    Indices of texture uv (num_tris*unsigned*3) [ tri1_tex_index1, tri1_tex_index2 ... ]
-   */
-  RTresult RTAPI rtuCreateClusteredMeshExt( RTcontext       context,
-                                            unsigned int    usePTX32InHost64,
-                                            RTgeometry*     mesh,
-                                            unsigned int    num_verts,
-                                            const float*    verts,
-                                            unsigned int    num_tris,
-                                            const unsigned* indices,
-                                            const unsigned* mat_indices,
-                                            RTbuffer        norms,
-                                            const unsigned* norm_indices,
-                                            RTbuffer        tex_coords,
-                                            const unsigned* tex_indices );
-
-#ifdef __cplusplus
-} /* extern "C" */
-#endif
 
 
 #undef RTU_CHECK_ERROR

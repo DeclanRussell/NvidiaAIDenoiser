@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2018 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
  *
  * NOTICE TO USER:
  *
@@ -43,7 +43,7 @@
  * This file implements common mathematical operations on vector types
  * (float3, float4 etc.) since these are not provided as standard by CUDA.
  *
- * The syntax is modelled on the Cg standard library.
+ * The syntax is modeled on the Cg standard library.
  *
  * This file has also been modified from the original cutil_math.h file.
  * cutil_math.h is a subset of this file, and you should use this file in place
@@ -138,7 +138,7 @@ namespace optix {
 #include <math.h>
 
 // On systems that declare (but not define) these functions we need to define them here.
-// The system versions are not inlinable and cause slower perforance.  In addition we
+// The system versions are not inlinable and cause slower performance.  In addition we
 // can't define them in a namespace, because we need to override the one declared extern
 // in the global namespace and subsequent overloaded versions need to qualify their call
 // with the global namespace to avoid auto-casting from float to float3 and friends.
@@ -236,12 +236,42 @@ namespace optix {
 #endif
   OPTIXU_INLINE int max(int a, int b)
   {
-    return a > b ? a : b;
+      return a > b ? a : b;
   }
 
   OPTIXU_INLINE int min(int a, int b)
   {
-    return a < b ? a : b;
+      return a < b ? a : b;
+  }
+
+  OPTIXU_INLINE long long max(long long a, long long b)
+  {
+      return a > b ? a : b;
+  }
+
+  OPTIXU_INLINE long long min(long long a, long long b)
+  {
+      return a < b ? a : b;
+  }
+
+  OPTIXU_INLINE unsigned int max(unsigned int a, unsigned int b)
+  {
+      return a > b ? a : b;
+  }
+
+  OPTIXU_INLINE unsigned int min(unsigned int a, unsigned int b)
+  {
+      return a < b ? a : b;
+  }
+
+  OPTIXU_INLINE unsigned long long max(unsigned long long a, unsigned long long b)
+  {
+      return a > b ? a : b;
+  }
+
+  OPTIXU_INLINE unsigned long long min(unsigned long long a, unsigned long long b)
+  {
+      return a < b ? a : b;
   }
 #endif
 
@@ -1882,7 +1912,869 @@ OPTIXU_INLINE RT_HOSTDEVICE void setByIndex(uint4& v, int i, unsigned int x)
 {
   ((unsigned int*)(&v))[i] = x;
 }
-  
+
+/* long long functions */
+/******************************************************************************/
+
+/** clamp */
+OPTIXU_INLINE RT_HOSTDEVICE long long clamp(const long long f, const long long a, const long long b)
+{
+    return max(a, min(f, b));
+}
+
+/** If used on the device, this could place the the 'v' in local memory */
+OPTIXU_INLINE RT_HOSTDEVICE long long getByIndex(const longlong1& v, int i)
+{
+    return ((long long*)(&v))[i];
+}
+
+/** If used on the device, this could place the the 'v' in local memory */
+OPTIXU_INLINE RT_HOSTDEVICE void setByIndex(longlong1& v, int i, long long x)
+{
+    ((long long*)(&v))[i] = x;
+}
+
+
+/* longlong2 functions */
+/******************************************************************************/
+
+/** additional constructors
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE longlong2 make_longlong2(const long long s)
+{
+    return make_longlong2(s, s);
+}
+OPTIXU_INLINE RT_HOSTDEVICE longlong2 make_longlong2(const float2& a)
+{
+    return make_longlong2(int(a.x), int(a.y));
+}
+/** @} */
+
+/** negate */
+OPTIXU_INLINE RT_HOSTDEVICE longlong2 operator-(const longlong2& a)
+{
+    return make_longlong2(-a.x, -a.y);
+}
+
+/** min */
+OPTIXU_INLINE RT_HOSTDEVICE longlong2 min(const longlong2& a, const longlong2& b)
+{
+    return make_longlong2(min(a.x, b.x), min(a.y, b.y));
+}
+
+/** max */
+OPTIXU_INLINE RT_HOSTDEVICE longlong2 max(const longlong2& a, const longlong2& b)
+{
+    return make_longlong2(max(a.x, b.x), max(a.y, b.y));
+}
+
+/** add
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE longlong2 operator+(const longlong2& a, const longlong2& b)
+{
+    return make_longlong2(a.x + b.x, a.y + b.y);
+}
+OPTIXU_INLINE RT_HOSTDEVICE void operator+=(longlong2& a, const longlong2& b)
+{
+    a.x += b.x; a.y += b.y;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE longlong2 operator-(const longlong2& a, const longlong2& b)
+{
+    return make_longlong2(a.x - b.x, a.y - b.y);
+}
+OPTIXU_INLINE RT_HOSTDEVICE longlong2 operator-(const longlong2& a, const long long b)
+{
+    return make_longlong2(a.x - b, a.y - b);
+}
+OPTIXU_INLINE RT_HOSTDEVICE void operator-=(longlong2& a, const longlong2& b)
+{
+    a.x -= b.x; a.y -= b.y;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE longlong2 operator*(const longlong2& a, const longlong2& b)
+{
+    return make_longlong2(a.x * b.x, a.y * b.y);
+}
+OPTIXU_INLINE RT_HOSTDEVICE longlong2 operator*(const longlong2& a, const long long s)
+{
+    return make_longlong2(a.x * s, a.y * s);
+}
+OPTIXU_INLINE RT_HOSTDEVICE longlong2 operator*(const long long s, const longlong2& a)
+{
+    return make_longlong2(a.x * s, a.y * s);
+}
+OPTIXU_INLINE RT_HOSTDEVICE void operator*=(longlong2& a, const long long s)
+{
+    a.x *= s; a.y *= s;
+}
+/** @} */
+
+/** clamp
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE longlong2 clamp(const longlong2& v, const long long a, const long long b)
+{
+    return make_longlong2(clamp(v.x, a, b), clamp(v.y, a, b));
+}
+
+OPTIXU_INLINE RT_HOSTDEVICE longlong2 clamp(const longlong2& v, const longlong2& a, const longlong2& b)
+{
+    return make_longlong2(clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y));
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE bool operator==(const longlong2& a, const longlong2& b)
+{
+    return a.x == b.x && a.y == b.y;
+}
+
+OPTIXU_INLINE RT_HOSTDEVICE bool operator!=(const longlong2& a, const longlong2& b)
+{
+    return a.x != b.x || a.y != b.y;
+}
+/** @} */
+
+/** If used on the device, this could place the the 'v' in local memory */
+OPTIXU_INLINE RT_HOSTDEVICE long long getByIndex(const longlong2& v, int i)
+{
+    return ((long long*)(&v))[i];
+}
+
+/** If used on the device, this could place the the 'v' in local memory */
+OPTIXU_INLINE RT_HOSTDEVICE void setByIndex(longlong2& v, int i, long long x)
+{
+    ((long long*)(&v))[i] = x;
+}
+
+
+/* longlong3 functions */
+/******************************************************************************/
+
+/** additional constructors
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE longlong3 make_longlong3(const long long s)
+{
+    return make_longlong3(s, s, s);
+}
+OPTIXU_INLINE RT_HOSTDEVICE longlong3 make_longlong3(const float3& a)
+{
+    return make_longlong3( (long long)a.x, (long long)a.y, (long long)a.z);
+}
+/** @} */
+
+/** negate */
+OPTIXU_INLINE RT_HOSTDEVICE longlong3 operator-(const longlong3& a)
+{
+    return make_longlong3(-a.x, -a.y, -a.z);
+}
+
+/** min */
+OPTIXU_INLINE RT_HOSTDEVICE longlong3 min(const longlong3& a, const longlong3& b)
+{
+    return make_longlong3(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z));
+}
+
+/** max */
+OPTIXU_INLINE RT_HOSTDEVICE longlong3 max(const longlong3& a, const longlong3& b)
+{
+    return make_longlong3(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z));
+}
+
+/** add
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE longlong3 operator+(const longlong3& a, const longlong3& b)
+{
+    return make_longlong3(a.x + b.x, a.y + b.y, a.z + b.z);
+}
+OPTIXU_INLINE RT_HOSTDEVICE void operator+=(longlong3& a, const longlong3& b)
+{
+    a.x += b.x; a.y += b.y; a.z += b.z;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE longlong3 operator-(const longlong3& a, const longlong3& b)
+{
+    return make_longlong3(a.x - b.x, a.y - b.y, a.z - b.z);
+}
+
+OPTIXU_INLINE RT_HOSTDEVICE void operator-=(longlong3& a, const longlong3& b)
+{
+    a.x -= b.x; a.y -= b.y; a.z -= b.z;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE longlong3 operator*(const longlong3& a, const longlong3& b)
+{
+    return make_longlong3(a.x * b.x, a.y * b.y, a.z * b.z);
+}
+OPTIXU_INLINE RT_HOSTDEVICE longlong3 operator*(const longlong3& a, const long long s)
+{
+    return make_longlong3(a.x * s, a.y * s, a.z * s);
+}
+OPTIXU_INLINE RT_HOSTDEVICE longlong3 operator*(const long long s, const longlong3& a)
+{
+    return make_longlong3(a.x * s, a.y * s, a.z * s);
+}
+OPTIXU_INLINE RT_HOSTDEVICE void operator*=(longlong3& a, const long long s)
+{
+    a.x *= s; a.y *= s; a.z *= s;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE longlong3 operator/(const longlong3& a, const longlong3& b)
+{
+    return make_longlong3(a.x / b.x, a.y / b.y, a.z / b.z);
+}
+OPTIXU_INLINE RT_HOSTDEVICE longlong3 operator/(const longlong3& a, const long long s)
+{
+    return make_longlong3(a.x / s, a.y / s, a.z / s);
+}
+OPTIXU_INLINE RT_HOSTDEVICE longlong3 operator/(const long long s, const longlong3& a)
+{
+    return make_longlong3(s /a.x, s / a.y, s / a.z);
+}
+OPTIXU_INLINE RT_HOSTDEVICE void operator/=(longlong3& a, const long long s)
+{
+    a.x /= s; a.y /= s; a.z /= s;
+}
+/** @} */
+
+/** clamp
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE longlong3 clamp(const longlong3& v, const long long a, const long long b)
+{
+    return make_longlong3(clamp(v.x, a, b), clamp(v.y, a, b), clamp(v.z, a, b));
+}
+
+OPTIXU_INLINE RT_HOSTDEVICE longlong3 clamp(const longlong3& v, const longlong3& a, const longlong3& b)
+{
+    return make_longlong3(clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y), clamp(v.z, a.z, b.z));
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE bool operator==(const longlong3& a, const longlong3& b)
+{
+    return a.x == b.x && a.y == b.y && a.z == b.z;
+}
+
+OPTIXU_INLINE RT_HOSTDEVICE bool operator!=(const longlong3& a, const longlong3& b)
+{
+    return a.x != b.x || a.y != b.y || a.z != b.z;
+}
+/** @} */
+
+/** If used on the device, this could place the the 'v' in local memory */
+OPTIXU_INLINE RT_HOSTDEVICE long long getByIndex(const longlong3& v, int i)
+{
+    return ((long long*)(&v))[i];
+}
+
+/** If used on the device, this could place the the 'v' in local memory */
+OPTIXU_INLINE RT_HOSTDEVICE void setByIndex(longlong3& v, int i, int x)
+{
+    ((long long*)(&v))[i] = x;
+}
+
+
+/* longlong4 functions */
+/******************************************************************************/
+
+/** additional constructors
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE longlong4 make_longlong4(const long long s)
+{
+    return make_longlong4(s, s, s, s);
+}
+OPTIXU_INLINE RT_HOSTDEVICE longlong4 make_longlong4(const float4& a)
+{
+    return make_longlong4((long long)a.x, (long long)a.y, (long long)a.z, (long long)a.w);
+}
+/** @} */
+
+/** negate */
+OPTIXU_INLINE RT_HOSTDEVICE longlong4 operator-(const longlong4& a)
+{
+    return make_longlong4(-a.x, -a.y, -a.z, -a.w);
+}
+
+/** min */
+OPTIXU_INLINE RT_HOSTDEVICE longlong4 min(const longlong4& a, const longlong4& b)
+{
+    return make_longlong4(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z), min(a.w, b.w));
+}
+
+/** max */
+OPTIXU_INLINE RT_HOSTDEVICE longlong4 max(const longlong4& a, const longlong4& b)
+{
+    return make_longlong4(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z), max(a.w, b.w));
+}
+
+/** add
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE longlong4 operator+(const longlong4& a, const longlong4& b)
+{
+    return make_longlong4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
+}
+OPTIXU_INLINE RT_HOSTDEVICE void operator+=(longlong4& a, const longlong4& b)
+{
+    a.x += b.x; a.y += b.y; a.z += b.z; a.w += b.w;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE longlong4 operator-(const longlong4& a, const longlong4& b)
+{
+    return make_longlong4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);
+}
+
+OPTIXU_INLINE RT_HOSTDEVICE void operator-=(longlong4& a, const longlong4& b)
+{
+    a.x -= b.x; a.y -= b.y; a.z -= b.z; a.w -= b.w;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE longlong4 operator*(const longlong4& a, const longlong4& b)
+{
+    return make_longlong4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w);
+}
+OPTIXU_INLINE RT_HOSTDEVICE longlong4 operator*(const longlong4& a, const long long s)
+{
+    return make_longlong4(a.x * s, a.y * s, a.z * s, a.w * s);
+}
+OPTIXU_INLINE RT_HOSTDEVICE longlong4 operator*(const long long s, const longlong4& a)
+{
+    return make_longlong4(a.x * s, a.y * s, a.z * s, a.w * s);
+}
+OPTIXU_INLINE RT_HOSTDEVICE void operator*=(longlong4& a, const long long s)
+{
+    a.x *= s; a.y *= s; a.z *= s; a.w *= s;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE longlong4 operator/(const longlong4& a, const longlong4& b)
+{
+    return make_longlong4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w);
+}
+OPTIXU_INLINE RT_HOSTDEVICE longlong4 operator/(const longlong4& a, const long long s)
+{
+    return make_longlong4(a.x / s, a.y / s, a.z / s, a.w / s);
+}
+OPTIXU_INLINE RT_HOSTDEVICE longlong4 operator/(const long long s, const longlong4& a)
+{
+    return make_longlong4(s / a.x, s / a.y, s / a.z, s / a.w);
+}
+OPTIXU_INLINE RT_HOSTDEVICE void operator/=(longlong4& a, const long long s)
+{
+    a.x /= s; a.y /= s; a.z /= s; a.w /= s;
+}
+/** @} */
+
+/** clamp
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE longlong4 clamp(const longlong4& v, const long long a, const long long b)
+{
+    return make_longlong4(clamp(v.x, a, b), clamp(v.y, a, b), clamp(v.z, a, b), clamp(v.w, a, b));
+}
+
+OPTIXU_INLINE RT_HOSTDEVICE longlong4 clamp(const longlong4& v, const longlong4& a, const longlong4& b)
+{
+    return make_longlong4(clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y), clamp(v.z, a.z, b.z), clamp(v.w, a.w, b.w));
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE bool operator==(const longlong4& a, const longlong4& b)
+{
+    return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
+}
+
+OPTIXU_INLINE RT_HOSTDEVICE bool operator!=(const longlong4& a, const longlong4& b)
+{
+    return a.x != b.x || a.y != b.y || a.z != b.z || a.w != b.w;
+}
+/** @} */
+
+/** If used on the device, this could place the the 'v' in local memory */
+OPTIXU_INLINE RT_HOSTDEVICE long long getByIndex(const longlong4& v, int i)
+{
+    return ((long long*)(&v))[i];
+}
+
+/** If used on the device, this could place the the 'v' in local memory */
+OPTIXU_INLINE RT_HOSTDEVICE void setByIndex(longlong4& v, int i, long long x)
+{
+    ((long long*)(&v))[i] = x;
+}
+
+/* ulonglong functions */
+/******************************************************************************/
+
+/** clamp */
+OPTIXU_INLINE RT_HOSTDEVICE unsigned long long clamp(const unsigned long long f, const unsigned long long a, const unsigned long long b)
+{
+    return max(a, min(f, b));
+}
+
+/** If used on the device, this could place the the 'v' in local memory */
+OPTIXU_INLINE RT_HOSTDEVICE unsigned long long getByIndex(const ulonglong1& v, unsigned int i)
+{
+    return ((unsigned long long*)(&v))[i];
+}
+
+/** If used on the device, this could place the the 'v' in local memory */
+OPTIXU_INLINE RT_HOSTDEVICE void setByIndex(ulonglong1& v, int i, unsigned long long x)
+{
+    ((unsigned long long*)(&v))[i] = x;
+}
+
+
+/* ulonglong2 functions */
+/******************************************************************************/
+
+/** additional constructors
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong2 make_ulonglong2(const unsigned long long s)
+{
+    return make_ulonglong2(s, s);
+}
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong2 make_ulonglong2(const float2& a)
+{
+    return make_ulonglong2((unsigned long long)a.x, (unsigned long long)a.y);
+}
+/** @} */
+
+/** min */
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong2 min(const ulonglong2& a, const ulonglong2& b)
+{
+    return make_ulonglong2(min(a.x, b.x), min(a.y, b.y));
+}
+
+/** max */
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong2 max(const ulonglong2& a, const ulonglong2& b)
+{
+    return make_ulonglong2(max(a.x, b.x), max(a.y, b.y));
+}
+
+/** add
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong2 operator+(const ulonglong2& a, const ulonglong2& b)
+{
+    return make_ulonglong2(a.x + b.x, a.y + b.y);
+}
+OPTIXU_INLINE RT_HOSTDEVICE void operator+=(ulonglong2& a, const ulonglong2& b)
+{
+    a.x += b.x; a.y += b.y;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong2 operator-(const ulonglong2& a, const ulonglong2& b)
+{
+    return make_ulonglong2(a.x - b.x, a.y - b.y);
+}
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong2 operator-(const ulonglong2& a, const unsigned long long b)
+{
+    return make_ulonglong2(a.x - b, a.y - b);
+}
+OPTIXU_INLINE RT_HOSTDEVICE void operator-=(ulonglong2& a, const ulonglong2& b)
+{
+    a.x -= b.x; a.y -= b.y;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong2 operator*(const ulonglong2& a, const ulonglong2& b)
+{
+    return make_ulonglong2(a.x * b.x, a.y * b.y);
+}
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong2 operator*(const ulonglong2& a, const unsigned long long s)
+{
+    return make_ulonglong2(a.x * s, a.y * s);
+}
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong2 operator*(const unsigned long long s, const ulonglong2& a)
+{
+    return make_ulonglong2(a.x * s, a.y * s);
+}
+OPTIXU_INLINE RT_HOSTDEVICE void operator*=(ulonglong2& a, const unsigned long long s)
+{
+    a.x *= s; a.y *= s;
+}
+/** @} */
+
+/** clamp
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong2 clamp(const ulonglong2& v, const unsigned long long a, const unsigned long long b)
+{
+    return make_ulonglong2(clamp(v.x, a, b), clamp(v.y, a, b));
+}
+
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong2 clamp(const ulonglong2& v, const ulonglong2& a, const ulonglong2& b)
+{
+    return make_ulonglong2(clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y));
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE bool operator==(const ulonglong2& a, const ulonglong2& b)
+{
+    return a.x == b.x && a.y == b.y;
+}
+
+OPTIXU_INLINE RT_HOSTDEVICE bool operator!=(const ulonglong2& a, const ulonglong2& b)
+{
+    return a.x != b.x || a.y != b.y;
+}
+/** @} */
+
+/** If used on the device, this could place the the 'v' in local memory */
+OPTIXU_INLINE RT_HOSTDEVICE unsigned long long getByIndex(const ulonglong2& v, unsigned int i)
+{
+    return ((unsigned long long*)(&v))[i];
+}
+
+/** If used on the device, this could place the the 'v' in local memory */
+OPTIXU_INLINE RT_HOSTDEVICE void setByIndex(ulonglong2& v, int i, unsigned long long x)
+{
+    ((unsigned long long*)(&v))[i] = x;
+}
+
+
+/* ulonglong3 functions */
+/******************************************************************************/
+
+/** additional constructors
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong3 make_ulonglong3(const unsigned long long s)
+{
+    return make_ulonglong3(s, s, s);
+}
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong3 make_ulonglong3(const float3& a)
+{
+    return make_ulonglong3((unsigned long long)a.x, (unsigned long long)a.y, (unsigned long long)a.z);
+}
+/** @} */
+
+/** min */
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong3 min(const ulonglong3& a, const ulonglong3& b)
+{
+    return make_ulonglong3(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z));
+}
+
+/** max */
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong3 max(const ulonglong3& a, const ulonglong3& b)
+{
+    return make_ulonglong3(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z));
+}
+
+/** add
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong3 operator+(const ulonglong3& a, const ulonglong3& b)
+{
+    return make_ulonglong3(a.x + b.x, a.y + b.y, a.z + b.z);
+}
+OPTIXU_INLINE RT_HOSTDEVICE void operator+=(ulonglong3& a, const ulonglong3& b)
+{
+    a.x += b.x; a.y += b.y; a.z += b.z;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong3 operator-(const ulonglong3& a, const ulonglong3& b)
+{
+    return make_ulonglong3(a.x - b.x, a.y - b.y, a.z - b.z);
+}
+
+OPTIXU_INLINE RT_HOSTDEVICE void operator-=(ulonglong3& a, const ulonglong3& b)
+{
+    a.x -= b.x; a.y -= b.y; a.z -= b.z;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong3 operator*(const ulonglong3& a, const ulonglong3& b)
+{
+    return make_ulonglong3(a.x * b.x, a.y * b.y, a.z * b.z);
+}
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong3 operator*(const ulonglong3& a, const unsigned long long s)
+{
+    return make_ulonglong3(a.x * s, a.y * s, a.z * s);
+}
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong3 operator*(const unsigned long long s, const ulonglong3& a)
+{
+    return make_ulonglong3(a.x * s, a.y * s, a.z * s);
+}
+OPTIXU_INLINE RT_HOSTDEVICE void operator*=(ulonglong3& a, const unsigned long long s)
+{
+    a.x *= s; a.y *= s; a.z *= s;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong3 operator/(const ulonglong3& a, const ulonglong3& b)
+{
+    return make_ulonglong3(a.x / b.x, a.y / b.y, a.z / b.z);
+}
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong3 operator/(const ulonglong3& a, const unsigned long long s)
+{
+    return make_ulonglong3(a.x / s, a.y / s, a.z / s);
+}
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong3 operator/(const unsigned long long s, const ulonglong3& a)
+{
+    return make_ulonglong3(s / a.x, s / a.y, s / a.z);
+}
+OPTIXU_INLINE RT_HOSTDEVICE void operator/=(ulonglong3& a, const unsigned long long s)
+{
+    a.x /= s; a.y /= s; a.z /= s;
+}
+/** @} */
+
+/** clamp
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong3 clamp(const ulonglong3& v, const unsigned long long a, const unsigned long long b)
+{
+    return make_ulonglong3(clamp(v.x, a, b), clamp(v.y, a, b), clamp(v.z, a, b));
+}
+
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong3 clamp(const ulonglong3& v, const ulonglong3& a, const ulonglong3& b)
+{
+    return make_ulonglong3(clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y), clamp(v.z, a.z, b.z));
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE bool operator==(const ulonglong3& a, const ulonglong3& b)
+{
+    return a.x == b.x && a.y == b.y && a.z == b.z;
+}
+
+OPTIXU_INLINE RT_HOSTDEVICE bool operator!=(const ulonglong3& a, const ulonglong3& b)
+{
+    return a.x != b.x || a.y != b.y || a.z != b.z;
+}
+/** @} */
+
+/** If used on the device, this could place the the 'v' in local memory
+*/
+OPTIXU_INLINE RT_HOSTDEVICE unsigned long long getByIndex(const ulonglong3& v, unsigned int i)
+{
+    return ((unsigned long long*)(&v))[i];
+}
+
+/** If used on the device, this could place the the 'v' in local memory
+*/
+OPTIXU_INLINE RT_HOSTDEVICE void setByIndex(ulonglong3& v, int i, unsigned long long x)
+{
+    ((unsigned long long*)(&v))[i] = x;
+}
+
+
+/* ulonglong4 functions */
+/******************************************************************************/
+
+/** additional constructors
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong4 make_ulonglong4(const unsigned long long s)
+{
+    return make_ulonglong4(s, s, s, s);
+}
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong4 make_ulonglong4(const float4& a)
+{
+    return make_ulonglong4((unsigned long long)a.x, (unsigned long long)a.y, (unsigned long long)a.z, (unsigned long long)a.w);
+}
+/** @} */
+
+/** min
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong4 min(const ulonglong4& a, const ulonglong4& b)
+{
+    return make_ulonglong4(min(a.x, b.x), min(a.y, b.y), min(a.z, b.z), min(a.w, b.w));
+}
+/** @} */
+
+/** max
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong4 max(const ulonglong4& a, const ulonglong4& b)
+{
+    return make_ulonglong4(max(a.x, b.x), max(a.y, b.y), max(a.z, b.z), max(a.w, b.w));
+}
+/** @} */
+
+/** add
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong4 operator+(const ulonglong4& a, const ulonglong4& b)
+{
+    return make_ulonglong4(a.x + b.x, a.y + b.y, a.z + b.z, a.w + b.w);
+}
+OPTIXU_INLINE RT_HOSTDEVICE void operator+=(ulonglong4& a, const ulonglong4& b)
+{
+    a.x += b.x; a.y += b.y; a.z += b.z; a.w += b.w;
+}
+/** @} */
+
+/** subtract
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong4 operator-(const ulonglong4& a, const ulonglong4& b)
+{
+    return make_ulonglong4(a.x - b.x, a.y - b.y, a.z - b.z, a.w - b.w);
+}
+
+OPTIXU_INLINE RT_HOSTDEVICE void operator-=(ulonglong4& a, const ulonglong4& b)
+{
+    a.x -= b.x; a.y -= b.y; a.z -= b.z; a.w -= b.w;
+}
+/** @} */
+
+/** multiply
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong4 operator*(const ulonglong4& a, const ulonglong4& b)
+{
+    return make_ulonglong4(a.x * b.x, a.y * b.y, a.z * b.z, a.w * b.w);
+}
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong4 operator*(const ulonglong4& a, const unsigned long long s)
+{
+    return make_ulonglong4(a.x * s, a.y * s, a.z * s, a.w * s);
+}
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong4 operator*(const unsigned long long s, const ulonglong4& a)
+{
+    return make_ulonglong4(a.x * s, a.y * s, a.z * s, a.w * s);
+}
+OPTIXU_INLINE RT_HOSTDEVICE void operator*=(ulonglong4& a, const unsigned long long s)
+{
+    a.x *= s; a.y *= s; a.z *= s; a.w *= s;
+}
+/** @} */
+
+/** divide
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong4 operator/(const ulonglong4& a, const ulonglong4& b)
+{
+    return make_ulonglong4(a.x / b.x, a.y / b.y, a.z / b.z, a.w / b.w);
+}
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong4 operator/(const ulonglong4& a, const unsigned long long s)
+{
+    return make_ulonglong4(a.x / s, a.y / s, a.z / s, a.w / s);
+}
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong4 operator/(const unsigned long long s, const ulonglong4& a)
+{
+    return make_ulonglong4(s / a.x, s / a.y, s / a.z, s / a.w);
+}
+OPTIXU_INLINE RT_HOSTDEVICE void operator/=(ulonglong4& a, const unsigned long long s)
+{
+    a.x /= s; a.y /= s; a.z /= s; a.w /= s;
+}
+/** @} */
+
+/** clamp
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong4 clamp(const ulonglong4& v, const unsigned long long a, const unsigned long long b)
+{
+    return make_ulonglong4(clamp(v.x, a, b), clamp(v.y, a, b), clamp(v.z, a, b), clamp(v.w, a, b));
+}
+
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong4 clamp(const ulonglong4& v, const ulonglong4& a, const ulonglong4& b)
+{
+    return make_ulonglong4(clamp(v.x, a.x, b.x), clamp(v.y, a.y, b.y), clamp(v.z, a.z, b.z), clamp(v.w, a.w, b.w));
+}
+/** @} */
+
+/** equality
+* @{
+*/
+OPTIXU_INLINE RT_HOSTDEVICE bool operator==(const ulonglong4& a, const ulonglong4& b)
+{
+    return a.x == b.x && a.y == b.y && a.z == b.z && a.w == b.w;
+}
+
+OPTIXU_INLINE RT_HOSTDEVICE bool operator!=(const ulonglong4& a, const ulonglong4& b)
+{
+    return a.x != b.x || a.y != b.y || a.z != b.z || a.w != b.w;
+}
+/** @} */
+
+/** If used on the device, this could place the the 'v' in local memory
+*/
+OPTIXU_INLINE RT_HOSTDEVICE unsigned long long getByIndex(const ulonglong4& v, unsigned int i)
+{
+    return ((unsigned long long*)(&v))[i];
+}
+
+/** If used on the device, this could place the the 'v' in local memory
+*/
+OPTIXU_INLINE RT_HOSTDEVICE void setByIndex(ulonglong4& v, int i, unsigned long long x)
+{
+    ((unsigned long long*)(&v))[i] = x;
+}
+
 
 /******************************************************************************/
 
@@ -1895,6 +2787,12 @@ OPTIXU_INLINE RT_HOSTDEVICE int3 make_int3(const int4& v0) { return make_int3( v
 OPTIXU_INLINE RT_HOSTDEVICE uint2 make_uint2(const uint3& v0) { return make_uint2( v0.x, v0.y ); }
 OPTIXU_INLINE RT_HOSTDEVICE uint2 make_uint2(const uint4& v0) { return make_uint2( v0.x, v0.y ); }
 OPTIXU_INLINE RT_HOSTDEVICE uint3 make_uint3(const uint4& v0) { return make_uint3( v0.x, v0.y, v0.z ); }
+OPTIXU_INLINE RT_HOSTDEVICE longlong2 make_longlong2(const longlong3& v0) { return make_longlong2( v0.x, v0.y ); }
+OPTIXU_INLINE RT_HOSTDEVICE longlong2 make_longlong2(const longlong4& v0) { return make_longlong2( v0.x, v0.y ); }
+OPTIXU_INLINE RT_HOSTDEVICE longlong3 make_longlong3(const longlong4& v0) { return make_longlong3( v0.x, v0.y, v0.z ); }
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong2 make_ulonglong2(const ulonglong3& v0) { return make_ulonglong2( v0.x, v0.y ); }
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong2 make_ulonglong2(const ulonglong4& v0) { return make_ulonglong2( v0.x, v0.y ); }
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong3 make_ulonglong3(const ulonglong4& v0) { return make_ulonglong3( v0.x, v0.y, v0.z ); }
 OPTIXU_INLINE RT_HOSTDEVICE float2 make_float2(const float3& v0) { return make_float2( v0.x, v0.y ); }
 OPTIXU_INLINE RT_HOSTDEVICE float2 make_float2(const float4& v0) { return make_float2( v0.x, v0.y ); }
 OPTIXU_INLINE RT_HOSTDEVICE float3 make_float3(const float4& v0) { return make_float3( v0.x, v0.y, v0.z ); }
@@ -1919,6 +2817,22 @@ OPTIXU_INLINE RT_HOSTDEVICE uint4 make_uint4(const uint2& v0, const unsigned int
 OPTIXU_INLINE RT_HOSTDEVICE uint4 make_uint4(const unsigned int v0, const uint3& v1) { return make_uint4( v0, v1.x, v1.y, v1.z ); }
 OPTIXU_INLINE RT_HOSTDEVICE uint4 make_uint4(const uint3& v0, const unsigned int v1) { return make_uint4( v0.x, v0.y, v0.z, v1 ); }
 OPTIXU_INLINE RT_HOSTDEVICE uint4 make_uint4(const uint2& v0, const uint2& v1) { return make_uint4( v0.x, v0.y, v1.x, v1.y ); }
+OPTIXU_INLINE RT_HOSTDEVICE longlong3 make_longlong3(const long long v0, const longlong2& v1) { return make_longlong3(v0, v1.x, v1.y); }
+OPTIXU_INLINE RT_HOSTDEVICE longlong3 make_longlong3(const longlong2& v0, const long long v1) { return make_longlong3(v0.x, v0.y, v1); }
+OPTIXU_INLINE RT_HOSTDEVICE longlong4 make_longlong4(const long long v0, const long long v1, const longlong2& v2) { return make_longlong4(v0, v1, v2.x, v2.y); }
+OPTIXU_INLINE RT_HOSTDEVICE longlong4 make_longlong4(const long long v0, const longlong2& v1, const long long v2) { return make_longlong4(v0, v1.x, v1.y, v2); }
+OPTIXU_INLINE RT_HOSTDEVICE longlong4 make_longlong4(const longlong2& v0, const long long v1, const long long v2) { return make_longlong4(v0.x, v0.y, v1, v2); }
+OPTIXU_INLINE RT_HOSTDEVICE longlong4 make_longlong4(const long long v0, const longlong3& v1) { return make_longlong4(v0, v1.x, v1.y, v1.z); }
+OPTIXU_INLINE RT_HOSTDEVICE longlong4 make_longlong4(const longlong3& v0, const long long v1) { return make_longlong4(v0.x, v0.y, v0.z, v1); }
+OPTIXU_INLINE RT_HOSTDEVICE longlong4 make_longlong4(const longlong2& v0, const longlong2& v1) { return make_longlong4(v0.x, v0.y, v1.x, v1.y); }
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong3 make_ulonglong3(const unsigned long long v0, const ulonglong2& v1) { return make_ulonglong3(v0, v1.x, v1.y); }
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong3 make_ulonglong3(const ulonglong2& v0, const unsigned long long v1) { return make_ulonglong3(v0.x, v0.y, v1); }
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong4 make_ulonglong4(const unsigned long long v0, const unsigned long long v1, const ulonglong2& v2) { return make_ulonglong4(v0, v1, v2.x, v2.y); }
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong4 make_ulonglong4(const unsigned long long v0, const ulonglong2& v1, const unsigned long long v2) { return make_ulonglong4(v0, v1.x, v1.y, v2); }
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong4 make_ulonglong4(const ulonglong2& v0, const unsigned long long v1, const unsigned long long v2) { return make_ulonglong4(v0.x, v0.y, v1, v2); }
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong4 make_ulonglong4(const unsigned long long v0, const ulonglong3& v1) { return make_ulonglong4(v0, v1.x, v1.y, v1.z); }
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong4 make_ulonglong4(const ulonglong3& v0, const unsigned long long v1) { return make_ulonglong4(v0.x, v0.y, v0.z, v1); }
+OPTIXU_INLINE RT_HOSTDEVICE ulonglong4 make_ulonglong4(const ulonglong2& v0, const ulonglong2& v1) { return make_ulonglong4(v0.x, v0.y, v1.x, v1.y); }
 OPTIXU_INLINE RT_HOSTDEVICE float3 make_float3(const float2& v0, const float v1) { return make_float3(v0.x, v0.y, v1); }
 OPTIXU_INLINE RT_HOSTDEVICE float3 make_float3(const float v0, const float2& v1) { return make_float3( v0, v1.x, v1.y ); }
 OPTIXU_INLINE RT_HOSTDEVICE float4 make_float4(const float v0, const float v1, const float2& v2) { return make_float4( v0, v1, v2.x, v2.y ); }
@@ -1953,7 +2867,7 @@ OPTIXU_INLINE RT_HOSTDEVICE float3 temperature(const float t)
   return make_float3( r, g, b );
 }
 
-/** Branchless intesection avoids divergence.
+/** Branchless intersection avoids divergence.
 */
 OPTIXU_INLINE RT_HOSTDEVICE bool intersect_triangle_branchless(const Ray&    ray,
                                                                const float3& p0,
@@ -2167,7 +3081,7 @@ OPTIXU_INLINE RT_HOSTDEVICE float2 square_to_disk(const float2& sample)
 }
 
 /**
-* Convert cartesian coordinates to polar coordinates
+* Convert Cartesian coordinates to polar coordinates
 */
 OPTIXU_INLINE RT_HOSTDEVICE float3 cart_to_pol(const float3& v)
 {

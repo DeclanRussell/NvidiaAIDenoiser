@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2018 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA Corporation and its licensors retain all intellectual property and proprietary
  * rights in and to this software, related documentation and any modifications thereto.
@@ -43,6 +43,7 @@
 #include "internal/optix_datatypes.h"
 #include "internal/optix_declarations.h"
 #include "internal/optix_internal.h"
+#include "optixu/optixu_vector_functions.h"
 
 /*
   Augment vector types
@@ -212,7 +213,7 @@ protected:
   *
   * - \b rtLaunchIndex - The launch invocation index. Type must be one of \a unsigned int, \a uint2, \a uint3, \a int, \a int2, \a int3 and is read-only.
   * - \b rtLaunchDim - The size of each dimension of the launch. The values range from 1 to the launch size in that dimension. Type must be one of \a unsigned int, \a uint2, \a uint3, \a int, \a int2, \a int3 and is read-only.
-  * - \b rtCurrentRay - The currently active ray, valid only when a call to @ref rtTrace is active.  Type must be \a optix::Ray and is read-only.
+  * - \b rtCurrentRay - The currently active ray, valid only when a call to @ref rtTrace is active.  The vector is \em not guaranteed to be normalized.  Type must be \a optix::Ray and is read-only.
   * - \b rtIntersectionDistance - The current closest hit distance, valid only when a call to @ref rtTrace is active. Type must be \a float and is read-only.
   * - \b rtRayPayload - The struct passed into the most recent @ref rtTrace call and is read-write.
   * - \b attribute \a name - A named attribute passed from the intersection program to a closest-hit or any-hit program.  The types must match in both sets of programs.  This variable is read-only in the closest-hit or any-hit program and is written in the intersection program.
@@ -406,7 +407,7 @@ namespace optix {
     __inline__ __device__ static size_t4 make_index(size_t4 v0) { return make_size_t4(v0.x, v0.y, v0.z, v0.w); }
 
     // This struct is used to create overloaded methods based on the type of buffer
-    // element.  Note that we use a different name for the typemplate typename to avoid
+    // element.  Note that we use a different name for the template typename to avoid
     // confusing it with the template type of buffer.
     template<typename T2> struct type { };
 
@@ -439,7 +440,7 @@ namespace optix {
     // Constructor that initializes the id.
     __device__ __forceinline__ explicit bufferId(int id) : m_id(id) {}
       
-    // assigment that initializes the id with null.
+    // assignment that initializes the id with null.
     __device__ __forceinline__ bufferId& operator= (RTbufferidnull nullid) { m_id = nullid; return *this; }
 
     // Buffer access methods that use m_id as the argument to identify which buffer is
@@ -523,7 +524,7 @@ namespace optix {
   * the extent that OptiX can optimize the generated code.
   *
   * There is also a version of rtBufferId that can be used by the host code, so
-  * that types can exist in both host and device code. See the documetation for
+  * that types can exist in both host and device code. See the documentation for
   * rtBufferId found in the optix C++ API header.
   *
   * <B>History</B>
@@ -720,7 +721,8 @@ namespace optix {
     * There are also C++ template and C-style additional declarations for other 
     * texture types (char1, uchar1, char2, uchar2 ...):
     * 
-    * To get texture size dimensions \b rtTexSize can be used.
+    * To get texture size dimensions \b rtTexSize can be used. In the case of compressed textures,
+    * the size reflects the full view size, rather than the compressed data size.
     *
     * Texture element may be fetched with integer coordinates using functions:
     * \b rtTex1DFetch, \b rtTex2DFetch and \b rtTex3DFetch
@@ -1312,7 +1314,7 @@ namespace optix {
 /* This is used to declare programs that can be attached to variables and called from
  * within other RT_PROGRAMS.
  *
- * There are some limitations with PTX that is targetted at sm_1x devices.
+ * There are some limitations with PTX that is targeted at sm_1x devices.
  *
  * 1. Functions declared with RT_CALLABLE_PROGRAM will not be emitted in the PTX unless
  *    another function calls it.  This can be fixed by declaring a __global__ helper
@@ -1527,6 +1529,172 @@ namespace rti_internal_callableprogram {
   protected:
     int m_id;
   };
+
+  /* markedCallableProgramIdBase is the underlying class for handling bindless
+  * callable program calls with a specified call site identifier.  
+  * It should not be used directly, but instead the derived
+  * of rtMarkedCallableProgramId should be used.
+  */
+  template <typename ReturnT
+      , typename Arg0T = rti_internal_callableprogram::CPArgVoid
+      , typename Arg1T = rti_internal_callableprogram::CPArgVoid
+      , typename Arg2T = rti_internal_callableprogram::CPArgVoid
+      , typename Arg3T = rti_internal_callableprogram::CPArgVoid
+      , typename Arg4T = rti_internal_callableprogram::CPArgVoid
+      , typename Arg5T = rti_internal_callableprogram::CPArgVoid
+      , typename Arg6T = rti_internal_callableprogram::CPArgVoid
+      , typename Arg7T = rti_internal_callableprogram::CPArgVoid
+      , typename Arg8T = rti_internal_callableprogram::CPArgVoid
+      , typename Arg9T = rti_internal_callableprogram::CPArgVoid
+  >
+      class markedCallableProgramIdBase
+  {
+  public:
+      // Only allow creation with a call site name
+      __device__ __forceinline__ explicit markedCallableProgramIdBase( int id, const char* callSiteName ) : m_id( id ) { m_callSiteName = callSiteName; }
+      // Marked callable program ids are not usable in an rtVariable
+      // and do not have a default constructor on purpose.
+
+      ///////////////////////////////////////////////////
+      // Call operators
+      //
+      // If you call the function with the wrong number of argument, you will get a
+      // compilation error.  If you have too many, then you will warned that an argument
+      // doesn't match the CPArgVoid type.  If you have too few, then the check_is_CPArgVoid
+      // typedef will error out complaining that check_is_CPArgVoid::result isn't a type.
+      __device__ __forceinline__ ReturnT operator()()
+      {
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg0T>::result>::result Arg0_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg1T>::result>::result Arg1_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg2T>::result>::result Arg2_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg3T>::result>::result Arg3_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg4T>::result>::result Arg4_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg5T>::result>::result Arg5_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg6T>::result>::result Arg6_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg7T>::result>::result Arg7_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg8T>::result>::result Arg8_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg9T>::result>::result Arg9_test;
+          typedef ReturnT( *funcT )();
+          funcT call = (funcT)optix::rt_callable_program_from_id( m_id, m_callSiteName );
+          return call();
+      }
+      __device__ __forceinline__ ReturnT operator()( Arg0T arg0 )
+      {
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg1T>::result>::result Arg1_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg2T>::result>::result Arg2_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg3T>::result>::result Arg3_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg4T>::result>::result Arg4_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg5T>::result>::result Arg5_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg6T>::result>::result Arg6_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg7T>::result>::result Arg7_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg8T>::result>::result Arg8_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg9T>::result>::result Arg9_test;
+          typedef ReturnT( *funcT )(Arg0T);
+          funcT call = (funcT)optix::rt_callable_program_from_id( m_id, m_callSiteName );
+          return call( arg0 );
+      }
+      __device__ __forceinline__ ReturnT operator()( Arg0T arg0, Arg1T arg1 )
+      {
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg2T>::result>::result Arg2_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg3T>::result>::result Arg3_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg4T>::result>::result Arg4_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg5T>::result>::result Arg5_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg6T>::result>::result Arg6_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg7T>::result>::result Arg7_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg8T>::result>::result Arg8_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg9T>::result>::result Arg9_test;
+          typedef ReturnT( *funcT )(Arg0T, Arg1T);
+          funcT call = (funcT)optix::rt_callable_program_from_id( m_id, m_callSiteName );
+          return call( arg0, arg1 );
+      }
+      __device__ __forceinline__ ReturnT operator()( Arg0T arg0, Arg1T arg1, Arg2T arg2 )
+      {
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg3T>::result>::result Arg3_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg4T>::result>::result Arg4_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg5T>::result>::result Arg5_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg6T>::result>::result Arg6_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg7T>::result>::result Arg7_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg8T>::result>::result Arg8_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg9T>::result>::result Arg9_test;
+          typedef ReturnT( *funcT )(Arg0T, Arg1T, Arg2T);
+          funcT call = (funcT)optix::rt_callable_program_from_id( m_id, m_callSiteName );
+          return call( arg0, arg1, arg2 );
+      }
+      __device__ __forceinline__ ReturnT operator()( Arg0T arg0, Arg1T arg1, Arg2T arg2, Arg3T arg3 )
+      {
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg4T>::result>::result Arg4_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg5T>::result>::result Arg5_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg6T>::result>::result Arg6_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg7T>::result>::result Arg7_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg8T>::result>::result Arg8_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg9T>::result>::result Arg9_test;
+          typedef ReturnT( *funcT )(Arg0T, Arg1T, Arg2T, Arg3T);
+          funcT call = (funcT)optix::rt_callable_program_from_id( m_id, m_callSiteName );
+          return call( arg0, arg1, arg2, arg3 );
+      }
+      __device__ __forceinline__ ReturnT operator()( Arg0T arg0, Arg1T arg1, Arg2T arg2, Arg3T arg3,
+          Arg4T arg4 )
+      {
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg5T>::result>::result Arg5_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg6T>::result>::result Arg6_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg7T>::result>::result Arg7_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg8T>::result>::result Arg8_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg9T>::result>::result Arg9_test;
+          typedef ReturnT( *funcT )(Arg0T, Arg1T, Arg2T, Arg3T, Arg4T);
+          funcT call = (funcT)optix::rt_callable_program_from_id( m_id, m_callSiteName );
+          return call( arg0, arg1, arg2, arg3, arg4 );
+      }
+      __device__ __forceinline__ ReturnT operator()( Arg0T arg0, Arg1T arg1, Arg2T arg2, Arg3T arg3,
+          Arg4T arg4, Arg5T arg5 )
+      {
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg6T>::result>::result Arg6_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg7T>::result>::result Arg7_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg8T>::result>::result Arg8_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg9T>::result>::result Arg9_test;
+          typedef ReturnT( *funcT )(Arg0T, Arg1T, Arg2T, Arg3T, Arg4T, Arg5T);
+          funcT call = (funcT)optix::rt_callable_program_from_id( m_id, m_callSiteName );
+          return call( arg0, arg1, arg2, arg3, arg4, arg5 );
+      }
+      __device__ __forceinline__ ReturnT operator()( Arg0T arg0, Arg1T arg1, Arg2T arg2, Arg3T arg3,
+          Arg4T arg4, Arg5T arg5, Arg6T arg6 )
+      {
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg7T>::result>::result Arg7_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg8T>::result>::result Arg8_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg9T>::result>::result Arg9_test;
+          typedef ReturnT( *funcT )(Arg0T, Arg1T, Arg2T, Arg3T, Arg4T, Arg5T, Arg6T);
+          funcT call = (funcT)optix::rt_callable_program_from_id( m_id, m_callSiteName );
+          return call( arg0, arg1, arg2, arg3, arg4, arg5, arg6 );
+      }
+      __device__ __forceinline__ ReturnT operator()( Arg0T arg0, Arg1T arg1, Arg2T arg2, Arg3T arg3,
+          Arg4T arg4, Arg5T arg5, Arg6T arg6, Arg7T arg7 )
+      {
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg8T>::result>::result Arg8_test;
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg9T>::result>::result Arg9_test;
+          typedef ReturnT( *funcT )(Arg0T, Arg1T, Arg2T, Arg3T, Arg4T, Arg5T, Arg6T, Arg7T);
+          funcT call = (funcT)optix::rt_callable_program_from_id( m_id, m_callSiteName );
+          return call( arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7 );
+      }
+      __device__ __forceinline__ ReturnT operator()( Arg0T arg0, Arg1T arg1, Arg2T arg2, Arg3T arg3,
+          Arg4T arg4, Arg5T arg5, Arg6T arg6, Arg7T arg7,
+          Arg8T arg8 )
+      {
+          typedef typename check_is_CPArgVoid<is_CPArgVoid<Arg9T>::result>::result Arg9_test;
+          typedef ReturnT( *funcT )(Arg0T, Arg1T, Arg2T, Arg3T, Arg4T, Arg5T, Arg6T, Arg7T, Arg8T);
+          funcT call = (funcT)optix::rt_callable_program_from_id( m_id, m_callSiteName );
+          return call( arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8 );
+      }
+      __device__ __forceinline__ ReturnT operator()( Arg0T arg0, Arg1T arg1, Arg2T arg2, Arg3T arg3,
+          Arg4T arg4, Arg5T arg5, Arg6T arg6, Arg7T arg7,
+          Arg8T arg8, Arg9T arg9 )
+      {
+          typedef ReturnT( *funcT )(Arg0T, Arg1T, Arg2T, Arg3T, Arg4T, Arg5T, Arg6T, Arg7T, Arg8T, Arg9T);
+          funcT call = (funcT)optix::rt_callable_program_from_id( m_id, m_callSiteName );
+          return call( arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9 );
+      }
+  protected:
+      int m_id;
+      const char* m_callSiteName;
+  };
 } // end namespace rti_internal_callableprogram
 
 namespace optix {
@@ -1547,7 +1715,7 @@ namespace optix {
     /* Constructor that initializes the id.*/                           \
     __device__ __forceinline__ explicit callableProgramId(int id)       \
       : rti_internal_callableprogram::callableProgramIdBase<__VA_ARGS__>(id) {} \
-    /* assigment that initializes the id with null. */                  \
+    /* assignment that initializes the id with null. */                  \
     __device__ __forceinline__ callableProgramId& operator= (RTprogramidnull nullid) \
       { this->m_id = nullid; return *this; } \
     /* Return the id */                                                 \
@@ -1556,7 +1724,6 @@ namespace optix {
     __device__ __forceinline__ operator bool() const \
     { return this->m_id != RT_PROGRAM_ID_NULL; } \
   }
-
   /* callableProgramId should not be used directly.  Use rtCallableProgramId instead to
    * make sure compatibility with future versions of OptiX is maintained.
    */
@@ -1570,7 +1737,7 @@ namespace optix {
   template<typename ReturnT>
   class callableProgramId<ReturnT()>: RT_INTERNAL_CALLABLE_PROGRAM_DEFS(ReturnT);
   template<typename ReturnT, typename Arg0T>
-  class callableProgramId<ReturnT(Arg0T)>: RT_INTERNAL_CALLABLE_PROGRAM_DEFS(ReturnT,Arg0T);
+  class callableProgramId<ReturnT(Arg0T)>: RT_INTERNAL_CALLABLE_PROGRAM_DEFS( ReturnT, Arg0T );
   template<typename ReturnT, typename Arg0T, typename Arg1T>
   class callableProgramId<ReturnT(Arg0T,Arg1T)>: RT_INTERNAL_CALLABLE_PROGRAM_DEFS(ReturnT,Arg0T,Arg1T);
   template<typename ReturnT, typename Arg0T, typename Arg1T, typename Arg2T>
@@ -1593,9 +1760,81 @@ namespace optix {
            typename Arg4T, typename Arg5T, typename Arg6T, typename Arg7T, typename Arg8T>
   class callableProgramId<ReturnT(Arg0T,Arg1T,Arg2T,Arg3T,Arg4T,Arg5T,Arg6T,Arg7T,Arg8T)>: RT_INTERNAL_CALLABLE_PROGRAM_DEFS(ReturnT,Arg0T,Arg1T,Arg2T,Arg3T,Arg4T,Arg5T,Arg6T,Arg7T,Arg8T);
   template<typename ReturnT, typename Arg0T, typename Arg1T, typename Arg2T, typename Arg3T,
-           typename Arg4T, typename Arg5T, typename Arg6T, typename Arg7T, typename Arg8T, typename Arg9T>
-  class callableProgramId<ReturnT(Arg0T,Arg1T,Arg2T,Arg3T,Arg4T,Arg5T,Arg6T,Arg7T,Arg8T,Arg9T)>: RT_INTERNAL_CALLABLE_PROGRAM_DEFS(ReturnT,Arg0T,Arg1T,Arg2T,Arg3T,Arg4T,Arg5T,Arg6T,Arg7T,Arg8T,Arg9T);
+      typename Arg4T, typename Arg5T, typename Arg6T, typename Arg7T, typename Arg8T, typename Arg9T>
+   class callableProgramId<ReturnT(Arg0T,Arg1T,Arg2T,Arg3T,Arg4T,Arg5T,Arg6T,Arg7T,Arg8T,Arg9T)>: RT_INTERNAL_CALLABLE_PROGRAM_DEFS(ReturnT,Arg0T,Arg1T,Arg2T,Arg3T,Arg4T,Arg5T,Arg6T,Arg7T,Arg8T,Arg9T);
   
+  /* RT_INTERNAL_MARKED_CALLABLE_PROGRAM_DEFS, RT_INTERNAL_MARKED_CALLABLE_PROGRAM_DEF_NO_ARG
+   * and RT_INTERNAL_MARKED_CALLABLE_PROGRAM_DEF_W_ARGS are helper macros to define the body
+   * of each markedCallableProgramId class.
+   */
+#define RT_INTERNAL_MARKED_CALLABLE_PROGRAM_DEFS \
+  public:                                                               \
+    /* Constructor that initializes the id.*/                           \
+    __device__ __forceinline__ explicit markedCallableProgramId(int id, const char* callSiteName) \
+      : baseType(id, callSiteName) {} \
+    __device__ __forceinline__ explicit markedCallableProgramId(callableProgramIdType callable, const char* callSiteName) \
+      : baseType(callable.getId(), callSiteName) {} \
+    /* Return the id */                                                 \
+    __device__ __forceinline__ int getId() const { return this->m_id; } \
+    /* Return whether the id is valid */                                \
+    __device__ __forceinline__ operator bool() const \
+    { return this->m_id != RT_PROGRAM_ID_NULL; }
+
+#define RT_INTERNAL_MARKED_CALLABLE_PROGRAM_DEF_NO_ARG(ReturnT) \
+  class markedCallableProgramId<ReturnT()> : public rti_internal_callableprogram::markedCallableProgramIdBase<ReturnT> \
+  {                                                                     \
+    typedef callableProgramId<ReturnT()> callableProgramIdType ; \
+    typedef rti_internal_callableprogram::markedCallableProgramIdBase<ReturnT> baseType; \
+    RT_INTERNAL_MARKED_CALLABLE_PROGRAM_DEFS \
+  }
+
+#define RT_INTERNAL_MARKED_CALLABLE_PROGRAM_DEF_W_ARGS(ReturnT, ...) \
+  class markedCallableProgramId<ReturnT(__VA_ARGS__)> : public rti_internal_callableprogram::markedCallableProgramIdBase<ReturnT, __VA_ARGS__> \
+  {                                                                     \
+    typedef callableProgramId<ReturnT(__VA_ARGS__)> callableProgramIdType; \
+    typedef rti_internal_callableprogram::markedCallableProgramIdBase<ReturnT, __VA_ARGS__> baseType; \
+    RT_INTERNAL_MARKED_CALLABLE_PROGRAM_DEFS \
+  }
+  
+  /* markedCallableProgramId should not be used directly.  Use rtMarkedCallableProgramId 
+  * instead to make sure compatibility with future versions of OptiX is maintained.
+  */
+
+  /* The default template version is left undefined on purpose.  Only the specialized
+  * versions should be used. */
+  template<typename T>
+  class markedCallableProgramId;
+
+  /* These are specializations designed to be used like: <ReturnT(argument types)> */
+  template<typename ReturnT>
+  RT_INTERNAL_MARKED_CALLABLE_PROGRAM_DEF_NO_ARG( ReturnT );
+  template<typename ReturnT, typename Arg0T>
+  RT_INTERNAL_MARKED_CALLABLE_PROGRAM_DEF_W_ARGS( ReturnT, Arg0T );
+  template<typename ReturnT, typename Arg0T, typename Arg1T>
+  RT_INTERNAL_MARKED_CALLABLE_PROGRAM_DEF_W_ARGS( ReturnT, Arg0T, Arg1T );
+  template<typename ReturnT, typename Arg0T, typename Arg1T, typename Arg2T>
+  RT_INTERNAL_MARKED_CALLABLE_PROGRAM_DEF_W_ARGS( ReturnT, Arg0T, Arg1T, Arg2T );
+  template<typename ReturnT, typename Arg0T, typename Arg1T, typename Arg2T, typename Arg3T>
+  RT_INTERNAL_MARKED_CALLABLE_PROGRAM_DEF_W_ARGS( ReturnT, Arg0T, Arg1T, Arg2T, Arg3T );
+  template<typename ReturnT, typename Arg0T, typename Arg1T, typename Arg2T, typename Arg3T,
+      typename Arg4T>
+  RT_INTERNAL_MARKED_CALLABLE_PROGRAM_DEF_W_ARGS( ReturnT, Arg0T, Arg1T, Arg2T, Arg3T, Arg4T );
+  template<typename ReturnT, typename Arg0T, typename Arg1T, typename Arg2T, typename Arg3T,
+      typename Arg4T, typename Arg5T>
+  RT_INTERNAL_MARKED_CALLABLE_PROGRAM_DEF_W_ARGS( ReturnT, Arg0T, Arg1T, Arg2T, Arg3T, Arg4T, Arg5T );
+  template<typename ReturnT, typename Arg0T, typename Arg1T, typename Arg2T, typename Arg3T,
+      typename Arg4T, typename Arg5T, typename Arg6T>
+  RT_INTERNAL_MARKED_CALLABLE_PROGRAM_DEF_W_ARGS( ReturnT, Arg0T, Arg1T, Arg2T, Arg3T, Arg4T, Arg5T, Arg6T );
+  template<typename ReturnT, typename Arg0T, typename Arg1T, typename Arg2T, typename Arg3T,
+      typename Arg4T, typename Arg5T, typename Arg6T, typename Arg7T>
+  RT_INTERNAL_MARKED_CALLABLE_PROGRAM_DEF_W_ARGS( ReturnT, Arg0T, Arg1T, Arg2T, Arg3T, Arg4T, Arg5T, Arg6T, Arg7T );
+  template<typename ReturnT, typename Arg0T, typename Arg1T, typename Arg2T, typename Arg3T,
+      typename Arg4T, typename Arg5T, typename Arg6T, typename Arg7T, typename Arg8T>
+  RT_INTERNAL_MARKED_CALLABLE_PROGRAM_DEF_W_ARGS( ReturnT, Arg0T, Arg1T, Arg2T, Arg3T, Arg4T, Arg5T, Arg6T, Arg7T, Arg8T );
+  template<typename ReturnT, typename Arg0T, typename Arg1T, typename Arg2T, typename Arg3T,
+      typename Arg4T, typename Arg5T, typename Arg6T, typename Arg7T, typename Arg8T, typename Arg9T>
+  RT_INTERNAL_MARKED_CALLABLE_PROGRAM_DEF_W_ARGS( ReturnT, Arg0T, Arg1T, Arg2T, Arg3T, Arg4T, Arg5T, Arg6T, Arg7T, Arg8T, Arg9T );
+
   /* RT_INTERNAL_BOUND_CALLABLE_PROGRAM_DEFS is a helper macro to define the body of each
    * version of the boundCallableProgramId class. Variadic macro arguments are our friend
    * here, so we can use arguments such as (ReturnT,Arg0T) and (ReturnT,Arg0T,Arg1T) and
@@ -1659,7 +1898,6 @@ namespace optix {
   template<typename ReturnT, typename Arg0T, typename Arg1T, typename Arg2T, typename Arg3T,
            typename Arg4T, typename Arg5T, typename Arg6T, typename Arg7T, typename Arg8T, typename Arg9T>
   class boundCallableProgramId<ReturnT(Arg0T,Arg1T,Arg2T,Arg3T,Arg4T,Arg5T,Arg6T,Arg7T,Arg8T,Arg9T)>: RT_INTERNAL_BOUND_CALLABLE_PROGRAM_DEFS(ReturnT,Arg0T,Arg1T,Arg2T,Arg3T,Arg4T,Arg5T,Arg6T,Arg7T,Arg8T,Arg9T);
-  
 } // end namespace optix
 
 namespace rti_internal_typeinfo {
@@ -1676,7 +1914,6 @@ namespace rti_internal_typeinfo {
   {
     static const int m_typeenum = _OPTIX_TYPE_ENUM_PROGRAM_AS_ID;
   };
-  
 }
 
 /**
@@ -1706,9 +1943,68 @@ namespace rti_internal_typeinfo {
   * @ref rtCallableProgram
   * @ref rtCallableProgramX
   * @ref rtDeclareVariable
+  * @ref rtMarkedCallableProgramId
   * 
   */
 #define rtCallableProgramId  optix::callableProgramId
+
+/**
+  * @brief Marked Callable Program ID Declaration
+  *
+  * @ingroup CUDACDeclarations
+  *
+  * <B>Description</B>
+  *
+  * @ref rtMarkedCallableProgramId declares callable program \a name, which will appear
+  * to be a callable function with the specified return type and list of arguments.
+  * Calls to this callable program can be referenced on the host by the given
+  * \a callSiteName in order to specify the set of callable programs that
+  * that may be called at a specific call site. This allows to use bindless
+  * callable programs that call @ref rtTrace.
+  * Callable programs that call @ref rtTrace need a different call semantic 
+  * than programs that do not. Specifying the callable programs that may
+  * potentially be called at a call site allow OptiX to determine the correct
+  * call semantics at each call site.
+  * Programs that are declared using @ref rtCallableProgramId may only call trace
+  * if they are used in an rtVariable or in a @ref rtBuffer of type @rtCallableProgramId.
+  * The @ref rtMarkedCallableProgram type is only available on the device and cannot
+  * be used in an rtVariable. Objects of type @ref rtCallableProgramId can be
+  * transformed into @ref rtMarkedCallableProgramId by using the appropriate constructor.
+  *
+  * Example(s):
+  *
+  *@code
+  *  // Uses named call site marking, potential callees can be set through the host API,
+  *  // needed call semantics will determined based on those.
+  *  rtMarkedCallableProgramId<float3(float3, float)> modColor(id, "modColorCall");
+  *
+  *  // callable1 cannot call rtTrace
+  *  rtCallableProgramId<void(void)> callable1(id);
+  *  // Create marked callable from callable1. Uses named call site marking.
+  *  rtMarkedCallableProgramId<void(void)> markedCallable1(callable1, "callSite1");
+  *
+  *  // Variables of type rtCallableProgramId use automatic detection of the needed call semantics.
+  *  rtDeclareVariable(rtCallableProgramId<void(void)>, callable, ,);
+  *  callable();
+  *
+  *  // Buffers of type rtCallableProgramId use automatic detection of the needed call semantics.
+  *  rtBuffer<rtCallableProgramId<void(void)>, 1> programBuffer;
+  *  programBuffer[0]();
+  *  // Overwrite automatic marking with named marking
+  *  rtMarkedCallableProgramId<void(void)> marked(programBuffer[0], "callSite2");
+  *  // Use information provided through host API to determine call semantics.
+  *  marked();
+  *@endcode
+  *
+  * <B>History</B>
+  *
+  * @ref rtCallableProgramId was introduced in OptiX 6.0.
+  *
+  * <B>See also</B>
+  * @ref rtCallableProgram
+  *
+  */
+#define rtMarkedCallableProgramId  optix::markedCallableProgramId
 
 /**
   * @brief Callable Program X Declaration
@@ -1767,11 +2063,18 @@ namespace rti_internal_typeinfo {
   * If \a time is omitted, then the ray inherits the time of the parent ray that triggered the current program.
   * In a ray generation program where there is no parent ray, the time defaults to 0.0.
   *
+  * The optional visibility \p mask controls intersection against user-configurable groups of objects.
+  * Visibility masks of groups and geometries are compared against this mask. Intersections are computed
+  * if at least one bit is present in both sets, i.e. if \code (group_mask & ray_mask) != 0 \endcode.
+  * Note that visibility is currently limited to eight groups, only the lower eight bits of \p mask will
+  * be taken into account.
   *
   * @param[in] topNode  Top node object where to start the traversal
   * @param[in] ray      Ray to be traced
   * @param[in] time     Time value for the ray
   * @param[in] prd      Per-ray custom data
+  * @param[in] mask     Visibility mask as described above
+  * @param[in] flags    Ray flags
   *
   * @retval void    void return value
   * 
@@ -1779,24 +2082,26 @@ namespace rti_internal_typeinfo {
   * 
   * - @ref rtTrace was introduced in OptiX 1.0.
   * - \a time was introduced in OptiX 5.0.
+  * - \a mask and flags were introduced in OptiX 6.0.
   * 
   * <B>See also</B>
   * @ref rtObject
   * @ref rtCurrentTime
   * @ref Ray
+  * @ref RTrayflags
   * 
   */
 template<class T>
-static inline __device__ void rtTrace( rtObject topNode, optix::Ray ray, T& prd )
+static inline __device__ void rtTrace( rtObject topNode, optix::Ray ray, T& prd, RTvisibilitymask mask=RT_VISIBILITY_ALL, RTrayflags flags=RT_RAY_FLAG_NONE )
 {
-  optix::rt_trace(*(unsigned int*)&topNode, ray.origin, ray.direction, ray.ray_type, ray.tmin, ray.tmax, &prd, sizeof(T));
+  optix::rt_trace(*(unsigned int*)&topNode, ray.origin, ray.direction, ray.ray_type, ray.tmin, ray.tmax, mask, flags, &prd, sizeof(T));
 }
 
 /* Overload with time parameter, documented above */
 template<class T>
-static inline __device__ void rtTrace( rtObject topNode, optix::Ray ray, float time, T& prd )
+static inline __device__ void rtTrace( rtObject topNode, optix::Ray ray, float time, T& prd, RTvisibilitymask mask=RT_VISIBILITY_ALL, RTrayflags flags=RT_RAY_FLAG_NONE )
 {
-  optix::rt_trace_with_time(*(unsigned int*)&topNode, ray.origin, ray.direction, ray.ray_type, ray.tmin, ray.tmax, time, &prd, sizeof(T));
+  optix::rt_trace_with_time(*(unsigned int*)&topNode, ray.origin, ray.direction, ray.ray_type, ray.tmin, ray.tmax, time, mask, flags, &prd, sizeof(T));
 }
 
 /**
@@ -1824,7 +2129,7 @@ static inline __device__ void rtTrace( rtObject topNode, optix::Ray ray, float t
   * attributes.  Furthermore, attributes variables should only be written
   * after a successful return from @ref rtPotentialIntersection.
   *
-  * @ref rtPotentialIntersection is passed the material index associated
+  * @ref rtReportIntersection is passed the material index associated
   * with the reported intersection.  Objects with a single material should
   * pass an index of zero.
   *
@@ -2145,6 +2450,110 @@ static inline __device__ void rtGetTransform( RTtransformkind kind, float matrix
   return optix::rt_get_transform( kind, matrix );
 }
 
+/**
+  * @brief Get the index of the closest hit or currently intersecting primitive
+  * 
+  * @ingroup CUDACFunctions
+  * 
+  * <B>Description</B>
+  *
+  * @ref rtGetPrimitiveIndex provides the primitive index similar to what is normally passed
+  * to a custom intersection program as an argument. If an primitive-index offset is specified on
+  * the geometry (Geometry or GeometryTriangles node), rtGetPrimitiveIndex reports the
+  * primitive index of the geometry (range [0;N-1] for N primitives) plus the offset.
+  * This behavior is equal to what is passed to an intersection program.
+  * The rtGetPrimitiveIndex semantic is available in any hit, closest hit, and intersection programs.
+  * 
+  * @retval  unsigned int index of the primitive
+  * 
+  * <B>History</B>
+  * 
+  * @ref rtGetPrimitiveIndex was introduced in OptiX 6.0.
+  * 
+  * <B>See also</B>
+  * 
+  */
+static inline __device__ unsigned int rtGetPrimitiveIndex()
+{
+  return optix::rt_get_primitive_index();
+}
+
+/**
+* @brief Returns if the hit kind of the closest hit or currently intersecting primitive is a builtin triangle
+*
+* @ingroup CUDACFunctions
+*
+* <B>Description</B>
+*
+* @ref rtIsTriangleHit returns true if the intersected primitive is a builtin triangle.
+*
+* @retval  bool builtin triangle hit
+*
+* <B>History</B>
+*
+* @ref rtIsTriangleHit was introduced in OptiX 6.0.
+*
+* <B>See also</B>
+* rtIsTriangleHitBackFace
+* rtIsTriangleHitFrontFace
+*
+*/
+static inline __device__ bool rtIsTriangleHit()
+{
+  return optix::rt_is_triangle_hit();
+}
+
+/**
+* @brief Returns if the back face of a builtin triangle was hit
+*
+* @ingroup CUDACFunctions
+*
+* <B>Description</B>
+*
+* @ref rtIsTriangleHitBackFace returns true if the intersected primitive is a builtin triangle and if the back face
+* of that triangle is hit. Returns false otherwise.
+*
+* @retval  bool builtin triangle hit back face
+*
+* <B>History</B>
+*
+* @ref rtIsTriangleHitFrontFace was introduced in OptiX 6.0.
+*
+* <B>See also</B>
+* rtIsTriangleHit
+* rtIsTriangleHitFrontFace
+*
+*/
+static inline __device__ bool rtIsTriangleHitBackFace()
+{
+  return optix::rt_is_triangle_hit_back_face();
+}
+
+/**
+* @brief Returns if the front face of a builtin triangle was hit
+*
+* @ingroup CUDACFunctions
+*
+* <B>Description</B>
+*
+* @ref rtIsTriangleHitFrontFace returns true if the intersected primitive is a builtin triangle and if the front face
+* of that triangle is hit. Returns false otherwise.
+*
+* @retval  bool builtin triangle hit front face
+*
+* <B>History</B>
+*
+* @ref rtIsTriangleHitFrontFace was introduced in OptiX 6.0.
+*
+* <B>See also</B>
+* rtIsTriangleHit
+* rtIsTriangleHitBackFace
+*/
+static inline __device__ bool rtIsTriangleHitFrontFace()
+{
+  return optix::rt_is_triangle_hit_front_face();
+}
+
 
 /*
    Printing
@@ -2256,8 +2665,14 @@ static inline __device__ void rtPrintf( const char* fmt, T1 arg1, T2 arg2, T3 ar
 template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7, typename T8, typename T9, typename T10, typename T11, typename T12>
 static inline __device__ void rtPrintf( const char* fmt, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12 )
 {
-  _RT_PRINT_ACTIVE()
-  printf(fmt, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12);
+    _RT_PRINT_ACTIVE()
+    printf(fmt, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12);
+}
+template<typename T1, typename T2, typename T3, typename T4, typename T5, typename T6, typename T7, typename T8, typename T9, typename T10, typename T11, typename T12, typename T13>
+static inline __device__ void rtPrintf( const char* fmt, T1 arg1, T2 arg2, T3 arg3, T4 arg4, T5 arg5, T6 arg6, T7 arg7, T8 arg8, T9 arg9, T10 arg10, T11 arg11, T12 arg12, T13 arg13 )
+{
+    _RT_PRINT_ACTIVE()
+    printf(fmt, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13);
 }
 /** @} */
 
@@ -2312,8 +2727,9 @@ namespace rti_internal_register {
   * does not return.
   *
   * The \a code passed as argument must be within the range reserved for user exceptions,
-  * which starts at @ref RT_EXCEPTION_USER (\a 0x400) and ends at \a 0xFFFF. The code can
-  * be queried within the exception program using @ref rtGetExceptionCode.
+  * which starts at @ref RT_EXCEPTION_USER (\a 0x400) and ends at @ref RT_EXCEPTION_USER_MAX
+  * (\a 0xFFFF). The code can be queried within the exception program using
+  * @ref rtGetExceptionCode.
   *
   * @ref rtThrow may be called from within any program type except exception programs. Calls
   * to @ref rtThrow will be silently ignored unless user exceptions are enabled using
@@ -2329,7 +2745,8 @@ namespace rti_internal_register {
   * @ref rtContextSetExceptionProgram,
   * @ref rtContextGetExceptionProgram,
   * @ref rtGetExceptionCode,
-  * @ref rtPrintExceptionDetails
+  * @ref rtPrintExceptionDetails,
+  * @ref RTexception
   * 
   */
 static inline __device__ void rtThrow( unsigned int code )
@@ -2361,7 +2778,8 @@ static inline __device__ void rtThrow( unsigned int code )
   * @ref rtContextSetExceptionProgram,
   * @ref rtContextGetExceptionProgram,
   * @ref rtThrow,
-  * @ref rtPrintExceptionDetails
+  * @ref rtPrintExceptionDetails,
+  * @ref RTexception
   * 
   */
 static inline __device__ unsigned int rtGetExceptionCode()
@@ -2395,7 +2813,8 @@ static inline __device__ unsigned int rtGetExceptionCode()
   * @ref rtContextSetPrintEnabled,
   * @ref rtGetExceptionCode,
   * @ref rtThrow,
-  * @ref rtPrintf
+  * @ref rtPrintf,
+  * @ref RTexception
   * 
   */
 static inline __device__ void rtPrintExceptionDetails()
@@ -2404,200 +2823,290 @@ static inline __device__ void rtPrintExceptionDetails()
 
   if( code == RT_EXCEPTION_STACK_OVERFLOW )
   {
-    rtPrintf( "Caught RT_EXCEPTION_STACK_OVERFLOW\n"
-              "  launch index : %d, %d, %d\n",
-              rti_internal_register::reg_rayIndex_x,
-              rti_internal_register::reg_rayIndex_y,
-              rti_internal_register::reg_rayIndex_z
-              );
+    rtPrintf(
+      "Caught RT_EXCEPTION_STACK_OVERFLOW\n"
+      "  launch index : %d, %d, %d\n",
+      rti_internal_register::reg_rayIndex_x,
+      rti_internal_register::reg_rayIndex_y,
+      rti_internal_register::reg_rayIndex_z );
+  }
+  else if( code == RT_EXCEPTION_TRACE_DEPTH_EXCEEDED )
+  {
+    rtPrintf(
+      "Caught RT_EXCEPTION_TRACE_DEPTH_EXCEEDED\n"
+      "  launch index : %d, %d, %d\n",
+      rti_internal_register::reg_rayIndex_x,
+      rti_internal_register::reg_rayIndex_y,
+      rti_internal_register::reg_rayIndex_z );
   }
   else if( code == RT_EXCEPTION_BUFFER_INDEX_OUT_OF_BOUNDS )
   {
-#if defined(__x86_64) || defined(AMD64) || defined(_M_AMD64) || defined(__powerpc64__)
     const unsigned int dim = rti_internal_register::reg_exception_detail0;
 
-    rtPrintf( "Caught RT_EXCEPTION_BUFFER_INDEX_OUT_OF_BOUNDS\n"
-              "  launch index   : %d, %d, %d\n"
-              "  buffer address : 0x%llX\n"
-              "  dimensionality : %d\n"
-              "  size           : %lldx%lldx%lld\n"
-              "  element size   : %d\n"
-              "  accessed index : %lld, %lld, %lld\n",
-              rti_internal_register::reg_rayIndex_x,
-              rti_internal_register::reg_rayIndex_y,
-              rti_internal_register::reg_rayIndex_z,
-              rti_internal_register::reg_exception_64_detail0,
-              rti_internal_register::reg_exception_detail0,
-              rti_internal_register::reg_exception_64_detail1,
-              dim > 1 ? rti_internal_register::reg_exception_64_detail2 : 1,
-              dim > 2 ? rti_internal_register::reg_exception_64_detail3 : 1,
-              rti_internal_register::reg_exception_detail1,
-              rti_internal_register::reg_exception_64_detail4,
-              rti_internal_register::reg_exception_64_detail5,
-              rti_internal_register::reg_exception_64_detail6
-              );
-#else
-    const unsigned int dim = rti_internal_register::reg_exception_detail1;
-
-    rtPrintf( "Caught RT_EXCEPTION_BUFFER_INDEX_OUT_OF_BOUNDS\n"
-              "  launch index   : %d, %d, %d\n"
-              "  buffer address : 0x%X\n"
-              "  dimensionality : %d\n"
-              "  size           : %dx%dx%d\n"
-              "  element size   : %d\n"
-              "  accessed index : %d, %d, %d\n",
-              rti_internal_register::reg_rayIndex_x,
-              rti_internal_register::reg_rayIndex_y,
-              rti_internal_register::reg_rayIndex_z,
-              rti_internal_register::reg_exception_detail0,
-              rti_internal_register::reg_exception_detail1,
-              rti_internal_register::reg_exception_detail2,
-              dim > 1 ? rti_internal_register::reg_exception_detail3 : 1,
-              dim > 2 ? rti_internal_register::reg_exception_detail4 : 1,
-              rti_internal_register::reg_exception_detail5,
-              rti_internal_register::reg_exception_detail6,
-              rti_internal_register::reg_exception_detail7,
-              rti_internal_register::reg_exception_detail8
-              );
-#endif
+    rtPrintf(
+      "Caught RT_EXCEPTION_BUFFER_INDEX_OUT_OF_BOUNDS\n"
+      "  launch index   : %d, %d, %d\n"
+      "  dimensionality : %d\n"
+      "  buffer details : %s\n"
+      "  buffer ID      : %d\n"
+      "  size           : %lldx%lldx%lld\n"
+      "  element size   : %d\n"
+      "  accessed index : %lld, %lld, %lld\n",
+      rti_internal_register::reg_rayIndex_x,
+      rti_internal_register::reg_rayIndex_y,
+      rti_internal_register::reg_rayIndex_z,
+      dim,
+      (const char*)rti_internal_register::reg_exception_64_detail0,
+      rti_internal_register::reg_exception_detail2,
+      rti_internal_register::reg_exception_64_detail1,
+      dim > 1 ? rti_internal_register::reg_exception_64_detail2 : 1,
+      dim > 2 ? rti_internal_register::reg_exception_64_detail3 : 1,
+      rti_internal_register::reg_exception_detail1,
+      rti_internal_register::reg_exception_64_detail4,
+      rti_internal_register::reg_exception_64_detail5,
+      rti_internal_register::reg_exception_64_detail6 );
   }
   else if( code == RT_EXCEPTION_PROGRAM_ID_INVALID )
   {
-    rtPrintf( "Caught RT_EXCEPTION_PROGRAM_ID_INVALID\n");
-    switch(rti_internal_register::reg_exception_detail1)
+    switch( rti_internal_register::reg_exception_detail1 )
     {
-    case 0:
-      rtPrintf( "\tprogram ID equal to RT_PROGRAM_ID_NULL used\n");
-      break;
-    case 1:
-      rtPrintf( "\tprogram ID (%d) is not in the valid range of [1,size)\n", rti_internal_register::reg_exception_detail0);
-      break;
-    case 2:
-      rtPrintf( "\tprogram ID of a deleted program used\n");
-      break;
+      case 1:
+        rtPrintf(
+          "Caught RT_EXCEPTION_PROGRAM_ID_INVALID\n"
+          "  program ID equal to RT_PROGRAM_ID_NULL used\n"
+          "  launch index   : %d, %d, %d\n"
+          "  location       : %s\n",
+          rti_internal_register::reg_rayIndex_x,
+          rti_internal_register::reg_rayIndex_y,
+          rti_internal_register::reg_rayIndex_z,
+          (const char*)rti_internal_register::reg_exception_64_detail0 );
+        break;
+      case 2:
+        rtPrintf(
+          "Caught RT_EXCEPTION_PROGRAM_ID_INVALID\n"
+          "  program ID (%d) is not in the valid range of [1,size)\n"
+          "  launch index   : %d, %d, %d\n"
+          "  location       : %s\n",
+          rti_internal_register::reg_exception_detail0,
+          rti_internal_register::reg_rayIndex_x,
+          rti_internal_register::reg_rayIndex_y,
+          rti_internal_register::reg_rayIndex_z,
+          (const char*)rti_internal_register::reg_exception_64_detail0 );
+        break;
+      case 3:
+        rtPrintf(
+          "Caught RT_EXCEPTION_PROGRAM_ID_INVALID\n"
+          "  program ID (%d) of a deleted program used\n"
+          "  launch index   : %d, %d, %d\n"
+          "  location       : %s\n",
+          rti_internal_register::reg_exception_detail0,
+          rti_internal_register::reg_rayIndex_x,
+          rti_internal_register::reg_rayIndex_y,
+          rti_internal_register::reg_rayIndex_z,
+          (const char*)rti_internal_register::reg_exception_64_detail0 );
+        break;
     }
   }
   else if( code == RT_EXCEPTION_TEXTURE_ID_INVALID )
   {
-    rtPrintf( "Caught RT_EXCEPTION_TEXTURE_ID_INVALID\n");
-    switch(rti_internal_register::reg_exception_detail1)
+    switch( rti_internal_register::reg_exception_detail1 )
     {
-    case 0:
-      rtPrintf( "\ttexture ID (%d) is invalid (0)\n", rti_internal_register::reg_exception_detail0);
-      break;
-    case 1:
-      rtPrintf( "\ttexture ID (%d) is not in the valid range of [1,size)\n", rti_internal_register::reg_exception_detail0);
-      break;
-    case 2:
-      rtPrintf( "\ttexture ID (%d) is invalid (-1)\n", rti_internal_register::reg_exception_detail0);
-      break;
+      case 1:
+        rtPrintf(
+          "Caught RT_EXCEPTION_TEXTURE_ID_INVALID\n"
+          "  texture ID is invalid (0)\n"
+          "  launch index   : %d, %d, %d\n",
+          rti_internal_register::reg_rayIndex_x,
+          rti_internal_register::reg_rayIndex_y,
+          rti_internal_register::reg_rayIndex_z );
+        break;
+      case 2:
+        rtPrintf(
+          "Caught RT_EXCEPTION_TEXTURE_ID_INVALID\n"
+          "  texture ID (%d) is not in the valid range of [1,size)\n"
+          "  launch index   : %d, %d, %d\n",
+          rti_internal_register::reg_exception_detail0,
+          rti_internal_register::reg_rayIndex_x,
+          rti_internal_register::reg_rayIndex_y,
+          rti_internal_register::reg_rayIndex_z );
+        break;
+      case 3:
+        rtPrintf(
+          "Caught RT_EXCEPTION_TEXTURE_ID_INVALID\n"
+          "  texture ID is invalid (-1)\n"
+          "  launch index   : %d, %d, %d\n",
+          rti_internal_register::reg_rayIndex_x,
+          rti_internal_register::reg_rayIndex_y,
+          rti_internal_register::reg_rayIndex_z );
+        break;
     }
   }
   else if( code == RT_EXCEPTION_BUFFER_ID_INVALID )
   {
-    rtPrintf( "Caught RT_EXCEPTION_BUFFER_ID_INVALID\n");
-    switch(rti_internal_register::reg_exception_detail1)
+    switch( rti_internal_register::reg_exception_detail1 )
     {
-    case 0:
-      rtPrintf( "\tbuffer ID equal to RT_BUFFER_ID_NULL used\n");
-      break;
-    case 1:
-      rtPrintf( "\tbuffer ID (%d) is not in the valid range of [1,size)\n", rti_internal_register::reg_exception_detail0);
-      break;
-    case 2:
-      rtPrintf( "\tBuffer ID of a deleted buffer used\n");
-      break;
+      case 1:
+        rtPrintf(
+          "Caught RT_EXCEPTION_BUFFER_ID_INVALID\n"
+          "  buffer ID equal to RT_BUFFER_ID_NULL used\n"
+          "  launch index   : %d, %d, %d\n"
+          "  location       : %s\n",
+          rti_internal_register::reg_rayIndex_x,
+          rti_internal_register::reg_rayIndex_y,
+          rti_internal_register::reg_rayIndex_z,
+          (const char*)rti_internal_register::reg_exception_64_detail0 );
+        break;
+      case 2:
+        rtPrintf(
+          "Caught RT_EXCEPTION_BUFFER_ID_INVALID\n"
+          "  buffer ID (%d) is not in the valid range of [1,size)\n",
+          "  launch index   : %d, %d, %d\n"
+          "  location       : %s\n",
+          rti_internal_register::reg_exception_detail0,
+          rti_internal_register::reg_rayIndex_x,
+          rti_internal_register::reg_rayIndex_y,
+          rti_internal_register::reg_rayIndex_z,
+          (const char*)rti_internal_register::reg_exception_64_detail0 );
+        break;
+      case 3:
+        rtPrintf(
+          "Caught RT_EXCEPTION_BUFFER_ID_INVALID\n"
+          "  buffer ID (%d) of a deleted buffer used\n"
+          "  launch index   : %d, %d, %d\n"
+          "  location       : %s\n",
+          rti_internal_register::reg_exception_detail0,
+          rti_internal_register::reg_rayIndex_x,
+          rti_internal_register::reg_rayIndex_y,
+          rti_internal_register::reg_rayIndex_z,
+          (const char*)rti_internal_register::reg_exception_64_detail0 );
+        break;
     }
   }
   else if( code == RT_EXCEPTION_INDEX_OUT_OF_BOUNDS )
   {
-#if defined(__x86_64) || defined(AMD64) || defined(_M_AMD64) || defined(__powerpc64__)
-    const unsigned int dim = rti_internal_register::reg_exception_detail0;
-
-    rtPrintf( "Caught RT_EXCEPTION_INDEX_OUT_OF_BOUNDS\n"
-              "  launch index   : %d, %d, %d\n"
-              "  buffer address : 0x%llX\n"
-              "  size           : %lld\n"
-              "  accessed index : %lld\n",
-              rti_internal_register::reg_rayIndex_x,
-              rti_internal_register::reg_rayIndex_y,
-              rti_internal_register::reg_rayIndex_z,
-              rti_internal_register::reg_exception_64_detail0,
-              rti_internal_register::reg_exception_64_detail1,
-              rti_internal_register::reg_exception_64_detail2
-              );
-#else
-    const unsigned int dim = rti_internal_register::reg_exception_detail1;
-
-    rtPrintf( "Caught RT_EXCEPTION_INDEX_OUT_OF_BOUNDS\n"
-              "  launch index   : %d, %d, %d\n"
-              "  buffer address : 0x%X\n"
-              "  size           : %d\n"
-              "  accessed index : %d\n",
-              rti_internal_register::reg_rayIndex_x,
-              rti_internal_register::reg_rayIndex_y,
-              rti_internal_register::reg_rayIndex_z,
-              rti_internal_register::reg_exception_detail0,
-              rti_internal_register::reg_exception_detail1,
-              rti_internal_register::reg_exception_detail2
-              );
-#endif
+    rtPrintf(
+      "Caught RT_EXCEPTION_INDEX_OUT_OF_BOUNDS\n"
+      "  launch index   : %d, %d, %d\n"
+      "  location       : %s\n"
+      "  size           : %lld\n"
+      "  accessed index : %lld\n",
+      rti_internal_register::reg_rayIndex_x,
+      rti_internal_register::reg_rayIndex_y,
+      rti_internal_register::reg_rayIndex_z,
+      (const char*)rti_internal_register::reg_exception_64_detail0,
+      rti_internal_register::reg_exception_64_detail1,
+      rti_internal_register::reg_exception_64_detail2 );
   }
   else if( code == RT_EXCEPTION_INVALID_RAY )
   {
-    rtPrintf( "Caught RT_EXCEPTION_INVALID_RAY\n"
-              "  launch index  : %d, %d, %d\n"
-              "  ray origin    : %f %f %f\n"
-              "  ray direction : %f %f %f\n"
-              "  ray type      : %d\n"
-              "  ray tmin      : %f\n"
-              "  ray tmax      : %f\n",
-              rti_internal_register::reg_rayIndex_x,
-              rti_internal_register::reg_rayIndex_y,
-              rti_internal_register::reg_rayIndex_z,
-              __int_as_float(rti_internal_register::reg_exception_detail0),
-              __int_as_float(rti_internal_register::reg_exception_detail1),
-              __int_as_float(rti_internal_register::reg_exception_detail2),
-              __int_as_float(rti_internal_register::reg_exception_detail3),
-              __int_as_float(rti_internal_register::reg_exception_detail4),
-              __int_as_float(rti_internal_register::reg_exception_detail5),
-              rti_internal_register::reg_exception_detail6,
-              __int_as_float(rti_internal_register::reg_exception_detail7),
-              __int_as_float(rti_internal_register::reg_exception_detail8)
-              );
+    rtPrintf(
+      "Caught RT_EXCEPTION_INVALID_RAY\n"
+      "  launch index  : %d, %d, %d\n"
+      "  location      : %s\n"
+      "  ray origin    : %f %f %f\n"
+      "  ray direction : %f %f %f\n"
+      "  ray type      : %d\n"
+      "  ray tmin      : %f\n"
+      "  ray tmax      : %f\n",
+      rti_internal_register::reg_rayIndex_x,
+      rti_internal_register::reg_rayIndex_y,
+      rti_internal_register::reg_rayIndex_z,
+      (const char*)rti_internal_register::reg_exception_64_detail0,
+      __int_as_float( rti_internal_register::reg_exception_detail0 ),
+      __int_as_float( rti_internal_register::reg_exception_detail1 ),
+      __int_as_float( rti_internal_register::reg_exception_detail2 ),
+      __int_as_float( rti_internal_register::reg_exception_detail3 ),
+      __int_as_float( rti_internal_register::reg_exception_detail4 ),
+      __int_as_float( rti_internal_register::reg_exception_detail5 ),
+      rti_internal_register::reg_exception_detail6,
+      __int_as_float( rti_internal_register::reg_exception_detail7 ),
+      __int_as_float( rti_internal_register::reg_exception_detail8 ) );
+  }
+  else if( code == RT_EXCEPTION_PAYLOAD_ACCESS_OUT_OF_BOUNDS )
+  {
+    rtPrintf(
+      "Caught RT_EXCEPTION_PAYLOAD_ACCESS_OUT_OF_BOUNDS\n"
+      "  launch index : %d, %d, %d\n"
+      "  location     : %s\n"
+      "  value offset : %lld\n"
+      "  value size   : %lld\n"
+      "  payload size : %lld\n",
+      rti_internal_register::reg_rayIndex_x,
+      rti_internal_register::reg_rayIndex_y,
+      rti_internal_register::reg_rayIndex_z,
+      (const char*)rti_internal_register::reg_exception_64_detail0,
+      rti_internal_register::reg_exception_64_detail1,
+      rti_internal_register::reg_exception_64_detail2,
+      rti_internal_register::reg_exception_64_detail3 );
+  }
+  else if( code == RT_EXCEPTION_USER_EXCEPTION_CODE_OUT_OF_BOUNDS )
+  {
+    rtPrintf(
+      "Caught RT_EXCEPTION_USER_EXCEPTION_CODE_OUT_OF_BOUNDS\n"
+      "  launch index : %d, %d, %d\n"
+      "  location     : %s\n"
+      "  code         : %d\n",
+      rti_internal_register::reg_rayIndex_x,
+      rti_internal_register::reg_rayIndex_y,
+      rti_internal_register::reg_rayIndex_z,
+      (const char*)rti_internal_register::reg_exception_64_detail0,
+      rti_internal_register::reg_exception_detail0 );
+  }
+  else if( code >= RT_EXCEPTION_USER && code <= RT_EXCEPTION_USER_MAX )
+  {
+    rtPrintf(
+      "Caught RT_EXCEPTION_USER+%d\n"
+      "  launch index : %d, %d, %d\n",
+      code - RT_EXCEPTION_USER,
+      rti_internal_register::reg_rayIndex_x,
+      rti_internal_register::reg_rayIndex_y,
+      rti_internal_register::reg_rayIndex_z );
   }
   else if( code == RT_EXCEPTION_INTERNAL_ERROR )
   {
     // Should never happen.
-    rtPrintf( "Caught RT_EXCEPTION_INTERNAL_ERROR\n"
-              "  launch index : %d, %d, %d\n"
-              "  error id     : %d\n",
-              rti_internal_register::reg_rayIndex_x,
-              rti_internal_register::reg_rayIndex_y,
-              rti_internal_register::reg_rayIndex_z,
-              rti_internal_register::reg_exception_detail0
-              );
-  }
-  else if( code >= RT_EXCEPTION_USER && code <= 0xFFFF )
-  {
-    rtPrintf( "Caught RT_EXCEPTION_USER+%d\n"
-              "  launch index : %d, %d, %d\n",
-              code-RT_EXCEPTION_USER,
-              rti_internal_register::reg_rayIndex_x,
-              rti_internal_register::reg_rayIndex_y,
-              rti_internal_register::reg_rayIndex_z
-              );
+    rtPrintf(
+      "Caught RT_EXCEPTION_INTERNAL_ERROR\n"
+      "  launch index : %d, %d, %d\n",
+      rti_internal_register::reg_rayIndex_x,
+      rti_internal_register::reg_rayIndex_y,
+      rti_internal_register::reg_rayIndex_z );
   }
   else
   {
     // Should never happen.
-    rtPrintf( "Caught unknown exception\n"
-              "  launch index : %d, %d, %d\n",
-              rti_internal_register::reg_rayIndex_x,
-              rti_internal_register::reg_rayIndex_y,
-              rti_internal_register::reg_rayIndex_z
-              );
+    rtPrintf(
+      "Caught unknown exception\n"
+      "  launch index : %d, %d, %d\n",
+      rti_internal_register::reg_rayIndex_x,
+      rti_internal_register::reg_rayIndex_y,
+      rti_internal_register::reg_rayIndex_z );
   }
+}
+
+/**
+  * @brief Accessor for barycentrics for built in triangle intersection
+  * 
+  * @ingroup CUDACDeclarations
+  * 
+  * <B>Description</B>
+  * 
+  * @ref rtGetTriangleBarycentrics returns the barycentric coordinates of the intersected
+  * triangle.  This function is only accessible in a program attached as an attribute
+  * program to an RTgeometrytriangles object.
+  *
+  * <B>History</B>
+  * 
+  * - @ref rtGetTriangleBarycentrics was introduced in OptiX 6.0.
+  * 
+  * <B>See also</B>
+  * @ref rtGeometryTrianglesSetAttributeProgram
+  * 
+  */
+
+static inline __device__ float2 rtGetTriangleBarycentrics()
+{
+  return optix::rt_get_triangle_barycentrics();
 }
 
 #endif /* __optix_optix_cuda__internal_h__ */

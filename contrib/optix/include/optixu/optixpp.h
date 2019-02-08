@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2018 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA Corporation and its licensors retain all intellectual property and proprietary
  * rights in and to this software, related documentation and any modifications thereto.
@@ -37,7 +37,7 @@
 #include "optixpp_namespace.h"
 
 /*
- * optixpp's classes origninally were in the optixu namespace but have subsequently been
+ * optixpp's classes originally were in the optixu namespace but have subsequently been
  * moved to the optix namespace.  For backward compatibility we provide the optixu
  * namespace here.
  */
@@ -48,12 +48,12 @@ namespace optixu {
   using optix::BufferObj;
   using optix::ContextObj;
   using optix::GeometryObj;
+  using optix::GeometryTrianglesObj;
   using optix::GeometryGroupObj;
   using optix::GeometryInstanceObj;
   using optix::GroupObj;
   using optix::MaterialObj;
   using optix::ProgramObj;
-  using optix::RemoteDeviceObj;
   using optix::SelectorObj;
   using optix::TextureSamplerObj;
   using optix::TransformObj;
@@ -69,12 +69,12 @@ namespace optixu {
   using optix::Buffer;
   using optix::Context;
   using optix::Geometry;
+  using optix::GeometryTriangles;
   using optix::GeometryGroup;
   using optix::GeometryInstance;
   using optix::Group;
   using optix::Material;
   using optix::Program;
-  using optix::RemoteDevice;
   using optix::Selector;
   using optix::TextureSampler;
   using optix::Transform;

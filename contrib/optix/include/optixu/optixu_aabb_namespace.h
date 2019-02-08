@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2018 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA Corporation and its licensors retain all intellectual property and proprietary
  * rights in and to this software, related documentation and any modifications thereto.
@@ -280,7 +280,7 @@ namespace optix {
   {
     RT_AABB_ASSERT( valid() );
     RT_AABB_ASSERT( dim>=0 && dim<=2 );
-    return ( ((float*)(&m_min))[dim] + ((float*)(&m_max))[dim] ) * 0.5f;
+    return ( ((const float*)(&m_min))[dim] + ((const float*)(&m_max))[dim] ) * 0.5f;
   }
 
   OPTIXU_INLINE RT_HOSTDEVICE float3 Aabb::extent() const
@@ -292,7 +292,7 @@ namespace optix {
   OPTIXU_INLINE RT_HOSTDEVICE float Aabb::extent( int dim ) const
   {
     RT_AABB_ASSERT( valid() );
-    return ((float*)(&m_max))[dim] - ((float*)(&m_min))[dim];
+    return ((const float*)(&m_max))[dim] - ((const float*)(&m_min))[dim];
   }
 
   OPTIXU_INLINE RT_HOSTDEVICE float Aabb::volume() const

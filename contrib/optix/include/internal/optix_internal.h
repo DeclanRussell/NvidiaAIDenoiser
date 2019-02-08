@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2018 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA Corporation and its licensors retain all intellectual property and proprietary
  * rights in and to this software, related documentation and any modifications thereto.
@@ -25,6 +25,7 @@
 #include "optix_datatypes.h"
 #include "optix_defines.h"
 #include "../optix_sizet.h"
+#include "../optixu/optixu_vector_functions.h"
 
 #if !defined(__CUDACC_RTC__)
 #include <cstdio>
@@ -273,24 +274,36 @@ namespace optix {
     return make_size_t4(d0, d1, d2, d3);
   }
 
-  static __forceinline__ __device__ void* rt_callable_program_from_id(int id)
+
+  static __forceinline__ __device__ void* rt_callable_program_from_id( int id, const char* csId=0 )
   {
     void* tmp;
-    asm volatile("call (%0), _rt_callable_program_from_id" OPTIX_BITNESS_SUFFIX ", (%1);" :
-                 "=" OPTIX_ASM_PTR(tmp) :
-                 "r"(id):
+    asm volatile("call (%0), _rt_callable_program_from_id_v2" OPTIX_BITNESS_SUFFIX ", (%1, %2);" :
+                 "=" OPTIX_ASM_PTR( tmp ) :
+                 "r"(id), OPTIX_ASM_PTR( csId ) :
                  );
 
 #if defined(__x86_64) || defined(AMD64) || defined(_M_AMD64) || defined(__powerpc64__)
-    rt_undefined_use64((unsigned long long)tmp);
+    rt_undefined_use64( (unsigned long long)tmp );
 #else
-    rt_undefined_use((int)tmp);
+    rt_undefined_use( (int)tmp );
 #endif
     return tmp;
   }
 
-  static __forceinline__ __device__ void rt_trace(unsigned int group, float3 origin, float3 direction, unsigned int ray_type,
-                                                  float tmin, float tmax, void* prd, unsigned int prd_size)
+  // Note that the interface changed with OptiX 6.0, see optix_device.h.
+  // A visibility mask and flags are always passed as parameters.
+  // However, both parameters have default values in the public function (optix_device.h).
+  static __forceinline__ __device__ void rt_trace( unsigned int     group,
+                                                   float3           origin,
+                                                   float3           direction,
+                                                   unsigned int     ray_type,
+                                                   float            tmin,
+                                                   float            tmax,
+                                                   RTvisibilitymask mask,
+                                                   RTrayflags       flags,
+                                                   void*            prd,
+                                                   unsigned int     prd_size )
   {
     float ox = origin.x, oy = origin.y, oz = origin.z;
     float dx = direction.x, dy = direction.y, dz = direction.z;
@@ -299,15 +312,24 @@ namespace optix {
 #else
     rt_undefined_use((int)prd);
 #endif
-    asm volatile("call _rt_trace" OPTIX_BITNESS_SUFFIX ", (%0, %1, %2, %3, %4, %5, %6, %7, %8, %9, %10, %11);" :
+    asm volatile("call _rt_trace_mask_flags" OPTIX_BITNESS_SUFFIX ", (%0, %1, %2, %3, %4, %5, %6, %7, %8, %9, %10, %11, %12, %13);" :
                  /* no return value */ :
                  "r"(group), "f"(ox), "f"(oy), "f"(oz), "f"(dx), "f"(dy), "f"(dz),
-                 "r"(ray_type), "f"(tmin), "f"(tmax), OPTIX_ASM_PTR(prd), "r"(prd_size) :
+                 "r"(ray_type), "f"(tmin), "f"(tmax), "r"(mask), "r"(flags), OPTIX_ASM_PTR(prd), "r"(prd_size) :
                  );
   }
 
-  static __forceinline__ __device__ void rt_trace_with_time(unsigned int group, float3 origin, float3 direction, unsigned int ray_type,
-                                                            float tmin, float tmax, float time, void* prd, unsigned int prd_size)
+  static __forceinline__ __device__ void rt_trace_with_time( unsigned int     group,
+                                                             float3           origin,
+                                                             float3           direction,
+                                                             unsigned int     ray_type,
+                                                             float            tmin,
+                                                             float            tmax,
+                                                             float            time,
+                                                             RTvisibilitymask mask,
+                                                             RTrayflags       flags,
+                                                             void*            prd,
+                                                             unsigned int     prd_size )
   {
     float ox = origin.x, oy = origin.y, oz = origin.z;
     float dx = direction.x, dy = direction.y, dz = direction.z;
@@ -316,10 +338,10 @@ namespace optix {
 #else
     rt_undefined_use((int)prd);
 #endif
-    asm volatile("call _rt_trace_with_time" OPTIX_BITNESS_SUFFIX ", (%0, %1, %2, %3, %4, %5, %6, %7, %8, %9, %10, %11, %12);" :
+    asm volatile("call _rt_trace_time_mask_flags" OPTIX_BITNESS_SUFFIX ", (%0, %1, %2, %3, %4, %5, %6, %7, %8, %9, %10, %11, %12, %13, %14);" :
                  /* no return value */ :
                  "r"(group), "f"(ox), "f"(oy), "f"(oz), "f"(dx), "f"(dy), "f"(dz),
-                 "r"(ray_type), "f"(tmin), "f"(tmax), "f"(time), OPTIX_ASM_PTR(prd), "r"(prd_size) :
+                 "r"(ray_type), "f"(tmin), "f"(tmax), "f"(time), "r"(mask), "r"(flags), OPTIX_ASM_PTR(prd), "r"(prd_size) :
                  );
   }
 
@@ -423,6 +445,42 @@ namespace optix {
                  );
   }
 
+  static __forceinline__ __device__ unsigned int rt_get_primitive_index()
+  {
+    unsigned int index;
+    asm volatile("call (%0), _rt_get_primitive_index, ();" :
+                 "=r"( index ) :
+                 );
+    return index;
+  }
+
+  static __forceinline__ __device__ bool rt_is_triangle_hit()
+  {
+    int ret;
+    asm volatile("call (%0), _rt_is_triangle_hit, ();" :
+                 "=r"( ret ) :
+                 );
+    return ret;
+  }
+
+  static __forceinline__ __device__ bool rt_is_triangle_hit_back_face()
+  {
+    int ret;
+    asm volatile("call (%0), _rt_is_triangle_hit_back_face, ();" :
+                 "=r"( ret ) :
+                 );
+    return ret;
+  }
+
+  static __forceinline__ __device__ bool rt_is_triangle_hit_front_face()
+  {
+    int ret;
+    asm volatile("call (%0), _rt_is_triangle_hit_front_face, ();" :
+                 "=r"( ret ) :
+                 );
+    return ret;
+  }
+
   static __forceinline__ __device__ void rt_throw( unsigned int code )
   {
     asm volatile("call _rt_throw, (%0);" :
@@ -459,6 +517,23 @@ namespace optix {
     if( !optix::rt_print_active() )                                       \
       return;                                                             \
 
+  /*
+     Triangles
+  */
+  
+  static __forceinline__ __device__  float2 rt_get_triangle_barycentrics()
+  {
+    float f0, f1;
+
+    asm volatile( "call (%0, %1), _rt_get_triangle_barycentrics, ();" :
+                  "=f"( f0 ), "=f"( f1 ) :
+                 );
+
+    rt_undefined_use((int)f0);
+    rt_undefined_use((int)f1);
+
+    return make_float2(f0, f1);
+  }
 
 } /* end namespace optix */
 

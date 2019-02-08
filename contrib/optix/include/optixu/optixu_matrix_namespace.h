@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2018 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA Corporation and its licensors retain all intellectual property and proprietary
  * rights in and to this software, related documentation and any modifications thereto.
@@ -105,7 +105,7 @@ namespace optix {
     typedef typename VectorDim<N>::VectorType  floatN; /// A row of the matrix
     typedef typename VectorDim<M>::VectorType  floatM; /// A column of the matrix
 
-	/** Create an unitialized matrix */
+	/** Create an uninitialized matrix */
 	RT_HOSTDEVICE              Matrix();
 
 	/** Create a matrix from the specified float array */

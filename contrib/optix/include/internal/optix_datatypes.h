@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2018 NVIDIA CORPORATION.  All rights reserved.
+ * Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
  *
  * NVIDIA Corporation and its licensors retain all intellectual property and proprietary
  * rights in and to this software, related documentation and any modifications thereto.
@@ -30,7 +30,6 @@
 #ifndef __optix_optix_datatypes_h__
 #define __optix_optix_datatypes_h__
 
-#include <host_defines.h>               /* for __inline__ */
 #include "../optixu/optixu_vector_types.h"        /* for float3 */
 #include "optix_declarations.h"         /* for RT_HOSTDEVICE */
 
