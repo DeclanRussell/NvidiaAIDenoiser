@@ -316,7 +316,7 @@ int main(int argc, char *argv[])
         optix_context->destroy();
                                             
     }                                               
-    catch (std::exception e)                        
+    catch (const std::exception &e)                        
     {                                               
         std::cerr<<"[OptiX]: "<<e.what()<<std::endl;
         cleanup();                                  
