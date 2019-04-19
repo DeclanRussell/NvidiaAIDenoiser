@@ -1,11 +1,13 @@
 
 #include <optix_world.h>
 #include <iostream>
+#include <iomanip>
 #include "OpenImageIO\imageio.h"
 #include "OpenImageIO\imagebuf.h"
 #include <stdio.h>
 #include <exception>
 
+#include <time.h>
 #define DENOISER_MAJOR_VERSION 2
 #define DENOISER_MINOR_VERSION 3
 
@@ -31,6 +33,7 @@ void printParams()
     std::cout<<"-b [float] : blend amount (default 0)"<<std::endl;
     std::cout<<"-hdr [int] : Use HDR training data (default 1)"<<std::endl;
     std::cout<<"-maxmem [int] : Maximum memory size used by the denoiser in MB"<<std::endl;
+    std::cout<<"-repeat [int] : Execute the denoiser N times. Useful for profiling."<<std::endl;
 }
 
 int main(int argc, char *argv[])
@@ -45,6 +48,7 @@ int main(int argc, char *argv[])
     std::string out_path;
     float blend = 0.f;
     unsigned int hdr = 1;
+    unsigned int num_runs = 1;
     float maxmem = 0.f;
     if (argc == 1)
     {
@@ -137,6 +141,13 @@ int main(int argc, char *argv[])
             std::string maxmem_string( argv[i] );
             maxmem = float(std::stoi(maxmem_string) * 1ULL<<20);
             std::cout<<"Maximum denoiser memory set to "<<maxmem<<std::endl;
+        }
+        else if (arg == "-repeat")
+        {
+            i++;
+            std::string repeat_string( argv[i] );
+            num_runs = std::max(std::stoi(repeat_string), 1);
+            std::cout<<"Number of repeats set to "<<maxmem<<std::endl;
         }
         else if (arg == "-h" || arg == "--help")
         {
@@ -291,9 +302,26 @@ int main(int argc, char *argv[])
         optix_context->compile();
 
         // Execute denoise
-        std::cout<<"Denoising..."<<std::endl;
-        commandList->execute();
-        std::cout<<"Denoising complete"<<std::endl;
+        int sum = 0;
+        for (unsigned int i = 0; i < num_runs; i++)
+        {
+            std::cout<<"Denoising..."<<std::endl;
+            clock_t start = clock(), diff;
+            commandList->execute();
+            diff = clock() - start;
+            int msec = diff * 1000 / CLOCKS_PER_SEC;
+            if (num_runs > 1)
+                std::cout<<"Denoising run "<<i<<" complete in "<<msec/1000<<"."<<std::setfill('0')<<std::setw(3)<<msec%1000<<" seconds"<<std::endl;
+            else
+                std::cout<<"Denoising complete in "<<msec/1000<<"."<<std::setfill('0')<<std::setw(3)<<msec%1000<<" seconds"<<std::endl;
+            sum += msec;
+        }
+        if (num_runs > 1)
+        {
+            sum /= num_runs;
+            std::cout<<"Denoising avg of "<<num_runs<<" complete in "<<sum/1000<<"."<<std::setfill('0')<<std::setw(3)<<sum%1000<<" seconds"<<std::endl;    
+        }
+
 
         // Copy denoised image back to the cpu
         device_ptr = (float*)out_buffer->map();
