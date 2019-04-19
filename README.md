@@ -18,6 +18,7 @@ Command line parameters
 * -b [float] : blend amount (default 0) 
 * -hdr [int] : Use HDR training data (default 1)
 * -maxmem [int] : Maximum memory size used by the denoiser in MB
+* -repeat [int] : Execute the denoiser N times. Useful for profiling.
 * -h/--help : Lists command line parameters
 
 You need to at least have an input and output for the app to run. If you also have them, you can add an albedo AOV or albedo and normal AOVs to improve the denoising. All images should be the same resolutions, not meeting this requirement will lead to unexpected results (likely a crash). 
