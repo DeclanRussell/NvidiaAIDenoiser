@@ -190,7 +190,7 @@ int main(int argc, char *argv[])
             i++;
             std::string repeat_string( argv[i] );
             num_runs = std::max(std::stoi(repeat_string), 1);
-            std::cout<<"Number of repeats set to "<<maxmem<<std::endl;
+            std::cout<<"Number of repeats set to "<<num_runs<<std::endl;
         }
         else if (arg == "-h" || arg == "--help")
         {
