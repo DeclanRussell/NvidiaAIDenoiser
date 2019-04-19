@@ -8,6 +8,13 @@
 #include <exception>
 
 #include <time.h>
+#ifdef _WIN32
+#include <thread>
+#include <chrono>
+#include <windows.h>
+#include <winternl.h>
+#endif
+
 #define DENOISER_MAJOR_VERSION 2
 #define DENOISER_MINOR_VERSION 3
 
@@ -15,6 +22,42 @@
 OIIO::ImageBuf* input_beauty = nullptr;
 OIIO::ImageBuf* input_albedo = nullptr;
 OIIO::ImageBuf* input_normal = nullptr;
+
+#ifdef _WIN32
+int getSysOpType()
+{
+    int ret = 0;
+    NTSTATUS(WINAPI *RtlGetVersion)(LPOSVERSIONINFOEXW);
+    OSVERSIONINFOEXW osInfo;
+
+    *(FARPROC*)&RtlGetVersion = GetProcAddress(GetModuleHandleA("ntdll"), "RtlGetVersion");
+
+    if (NULL != RtlGetVersion)
+    {
+        osInfo.dwOSVersionInfoSize = sizeof(osInfo);
+        RtlGetVersion(&osInfo);
+        ret = osInfo.dwMajorVersion;
+    }
+    return ret;
+}
+#endif
+
+void exitfunc(int exit_code)
+{
+#ifdef _WIN32
+    if (getSysOpType() < 10)
+    {
+        HANDLE tmpHandle = OpenProcess(PROCESS_ALL_ACCESS, TRUE, GetCurrentProcessId());
+        if (tmpHandle != NULL)
+        {
+            std::cout<<"terminating..."<<std::endl;
+            std::this_thread::sleep_for(std::chrono::seconds(1)); // delay 1s
+            TerminateProcess(tmpHandle, 0);
+        }
+    }
+#endif
+	exit(exit_code);
+}
 
 void cleanup()
 {
@@ -53,7 +96,7 @@ int main(int argc, char *argv[])
     if (argc == 1)
     {
         printParams();
-        return EXIT_SUCCESS;
+        exitfunc(EXIT_SUCCESS);
     }
     for (int i=1; i<argc; i++)
     {
@@ -74,7 +117,7 @@ int main(int argc, char *argv[])
                 std::cout<<"Failed to load input image"<<std::endl;
                 std::cout<<"[OIIO]: "<<input_beauty->geterror()<<std::endl;
                 cleanup();
-                return EXIT_FAILURE;
+                exitfunc(EXIT_FAILURE);
             }
         }
         else if (arg == "-n")
@@ -93,7 +136,7 @@ int main(int argc, char *argv[])
                 std::cout<<"Failed to load normal image"<<std::endl;
                 std::cout<<"[OIIO]: "<<input_normal->geterror()<<std::endl;
                 cleanup();
-                return EXIT_FAILURE;
+                exitfunc(EXIT_FAILURE);
             }
         }
         else if (arg == "-a")
@@ -112,7 +155,7 @@ int main(int argc, char *argv[])
                 std::cout<<"Failed to load albedo image"<<std::endl;
                 std::cout<<"[OIIO]: "<<input_albedo->geterror()<<std::endl;
                 cleanup();
-                return EXIT_FAILURE;
+                exitfunc(EXIT_FAILURE);
             }
         }
         else if(arg == "-o")
@@ -160,7 +203,7 @@ int main(int argc, char *argv[])
     {
         std::cerr<<"No input image could be loaded"<<std::endl;
         cleanup();
-        return EXIT_FAILURE;
+        exitfunc(EXIT_FAILURE);
     }
 
     // If a normal AOV is loaded then we also require an albedo AOV
@@ -168,7 +211,7 @@ int main(int argc, char *argv[])
     {
         std::cerr<<"You cannot use a normal AOV without an albedo"<<std::endl;
         cleanup();
-        return EXIT_FAILURE;
+        exitfunc(EXIT_FAILURE);
     }
 
     // Check for a file extension
@@ -180,7 +223,7 @@ int main(int argc, char *argv[])
     {
         std::cerr<<"No output file extension"<<std::endl;
         cleanup();
-        return EXIT_FAILURE;
+        exitfunc(EXIT_FAILURE);
     }
 
     OIIO::ROI beauty_roi, albedo_roi, normal_roi;
@@ -203,7 +246,7 @@ int main(int argc, char *argv[])
         {
             std::cerr<<"Aldedo image not same resolution as beauty"<<std::endl;
             cleanup();
-            return EXIT_FAILURE;
+            exitfunc(EXIT_FAILURE);
         }
     }
 
@@ -215,7 +258,7 @@ int main(int argc, char *argv[])
         {
             std::cerr<<"Normal image not same resolution as beauty"<<std::endl;
             cleanup();
-            return EXIT_FAILURE;
+            exitfunc(EXIT_FAILURE);
         }
     }
 
@@ -342,13 +385,13 @@ int main(int argc, char *argv[])
         albedo_buffer->destroy();
         out_buffer->destroy();
         optix_context->destroy();
-                                            
-    }                                               
-    catch (const std::exception &e)                        
-    {                                               
+
+    }
+    catch (const std::exception &e)
+    {
         std::cerr<<"[OptiX]: "<<e.what()<<std::endl;
-        cleanup();                                  
-        return EXIT_FAILURE;                        
+        cleanup();
+        exitfunc(EXIT_FAILURE);
     }
 
 
@@ -370,6 +413,6 @@ int main(int argc, char *argv[])
     }
 
     cleanup();
-    return EXIT_SUCCESS;
+    exitfunc(EXIT_SUCCESS);
 }
 
