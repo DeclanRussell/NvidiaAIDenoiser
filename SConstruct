@@ -33,9 +33,7 @@ if PLATFORM.name == "win32":
     ENV.Append(CPPDEFINES = "NOMINMAX")
 
 # Copy over the OptiX dlls to the bin directory
-#ENV.Command("bin/cudnn64_7.dll", "./contrib/optix/bin/cudnn64_7.dll", Copy("$TARGET", "$SOURCE"))
 ENV.Command("bin/optix.6.5.0.dll", "./contrib/optix/bin/optix.6.5.0.dll", Copy("$TARGET", "$SOURCE"))
-#ENV.Command("bin/optix_denoiser.6.0.0.dll", "./contrib/optix/bin/optix_denoiser.6.0.0.dll", Copy("$TARGET", "$SOURCE"))
 
 # Copy all of OIIO many dependancies!
 ENV.Command("bin/boost_atomic-vc141-mt-x64-1_67.dll", "./contrib/OpenImageIO/bin/boost_atomic-vc141-mt-x64-1_67.dll", Copy("$TARGET", "$SOURCE"))
