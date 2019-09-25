@@ -176,6 +176,74 @@ extern "C" {
   */
   RTresult RTAPI rtBufferSetDevicePointer (RTbuffer buffer, int optix_device_ordinal, void* device_pointer);
 
+  /**
+  * @brief Sets a CUDA synchronization stream for the command list
+  * 
+  * @ingroup CommandList
+  * 
+  * <B>Description</B>
+  * 
+  * @ref rtCommandListSetCudaStream sets a CUDA synchronization stream for the command list. The 
+  * command list guarantees that all work on the synchronization stream finishes before any launches 
+  * of the command list executes on the GPU. It will also have the synchronization stream wait for 
+  * those launches to complete using CUDA events. This means cuda interop, such as memory copying 
+  * or kernel execution, can be done in a safe way both before and after executing a command list. 
+  * If CUDA interop is made using streams other than the synchronization stream then CUDA events 
+  * must be used to make sure that the synchronization stream waits for all work done by other 
+  * streams, and also that the other streams wait for the synchronization stream after executing 
+  * the command list.
+  * 
+  * Note that the synchronization stream can be created on any active device, there is no need to 
+  * have one per device.
+  *
+  * @param[in]   list                            The command list buffer for which the stream is to be set
+  * @param[in]   stream                          The CUDA stream to set
+  * 
+  * <B>Return values</B>
+  *
+  * Relevant return values:
+  * - @ref RT_SUCCESS
+  * - @ref RT_ERROR_INVALID_VALUE
+  * 
+  * <B>History</B>
+  * 
+  * @ref rtCommandListSetCudaStream was introduced in OptiX 6.1.
+  * 
+  * <B>See also</B>
+  * @ref rtCommandListExecute
+  * @ref rtCommandListGetCudaStream
+  * 
+  */
+  RTresult RTAPI rtCommandListSetCudaStream( RTcommandlist list, void* stream );
+
+  /**
+  * @brief Gets the CUDA synchronization stream set for the command list
+  * 
+  * @ingroup CommandList
+  * 
+  * <B>Description</B>
+  * 
+  * @ref rtCommandListGetCudaStream gets the CUDA synchronization stream set for the command list.
+  *
+  * @param[in]   list                            The command list buffer for which to get the stream
+  * @param[out]  stream                          Set to the CUDA stream of the command list
+  * 
+  * <B>Return values</B>
+  *
+  * Relevant return values:
+  * - @ref RT_SUCCESS
+  * - @ref RT_ERROR_INVALID_VALUE
+  * 
+  * <B>History</B>
+  * 
+  * @ref rtCommandListGetCudaStream was introduced in OptiX 6.1.
+  * 
+  * <B>See also</B>
+  * @ref rtCommandListSetCommandList
+  * 
+  */
+  RTresult RTAPI rtCommandListGetCudaStream( RTcommandlist list, void** stream );
+
 #ifdef __cplusplus
 }
 #endif

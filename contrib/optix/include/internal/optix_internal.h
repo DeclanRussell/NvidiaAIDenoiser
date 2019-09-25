@@ -206,6 +206,208 @@ namespace optix {
     return make_float4(f0, f1, f2, f3);
   }
 
+  static __forceinline__ __device__ float4 rt_texture_load_or_request_f_id( int tex, int dim, float x, float y, float z, float w, bool* isResident )
+  {
+      float f0, f1, f2, f3;
+
+      asm volatile( "call (%0, %1, %2, %3), _rt_texture_load_or_request_f_id, (%4, %5, %6, %7, %8, %9, %10);"
+                    : "=f"( f0 ), "=f"( f1 ), "=f"( f2 ), "=f"( f3 )
+                    : "r"( tex ), "r"( dim ), "f"( x ), "f"( y ), "f"( z ), "f"( w ), OPTIX_ASM_PTR( isResident )
+                    : );
+
+      rt_undefined_use( (int)f0 );
+      rt_undefined_use( (int)f1 );
+      rt_undefined_use( (int)f2 );
+      rt_undefined_use( (int)f3 );
+
+      return make_float4( f0, f1, f2, f3 );
+  }
+
+  static __forceinline__ __device__ uint4 rt_texture_load_or_request_u_id( int tex, int dim, float x, float y, float z, float w, bool* isResident )
+  {
+      unsigned int u0, u1, u2, u3;
+
+      asm volatile( "call (%0, %1, %2, %3), _rt_texture_load_or_request_u_id, (%4, %5, %6, %7, %8, %9, %10);"
+                    : "=r"( u0 ), "=r"( u1 ), "=r"( u2 ), "=r"( u3 )
+                    : "r"( tex ), "r"( dim ), "f"( x ), "f"( y ), "f"( z ), "f"( w ), OPTIX_ASM_PTR( isResident )
+                    : );
+
+      rt_undefined_use( (int)u0 );
+      rt_undefined_use( (int)u1 );
+      rt_undefined_use( (int)u2 );
+      rt_undefined_use( (int)u3 );
+
+      return make_uint4( u0, u1, u2, u3 );
+  }
+
+  static __forceinline__ __device__ int4 rt_texture_load_or_request_i_id( int tex, int dim, float x, float y, float z, float w, bool* isResident )
+  {
+      int i0, i1, i2, i3;
+
+      asm volatile( "call (%0, %1, %2, %3), _rt_texture_load_or_request_i_id, (%4, %5, %6, %7, %8, %9, %10);"
+                    : "=r"( i0 ), "=r"( i1 ), "=r"( i2 ), "=r"( i3 )
+                    : "r"( tex ), "r"( dim ), "f"( x ), "f"( y ), "f"( z ), "f"( w ), OPTIX_ASM_PTR( isResident )
+                    : );
+
+      rt_undefined_use( i0 );
+      rt_undefined_use( i1 );
+      rt_undefined_use( i2 );
+      rt_undefined_use( i3 );
+
+      return make_int4( i0, i1, i2, i3 );
+  }
+
+  static __forceinline__ __device__ float4
+  rt_texture_lod_load_or_request_f_id( int tex, int dim, float x, float y, float z, float w, float level, bool* isResident )
+  {
+      float f0, f1, f2, f3;
+
+      asm volatile( "call (%0, %1, %2, %3), _rt_texture_lod_load_or_request_f_id, (%4, %5, %6, %7, %8, %9, %10, %11);"
+                    : "=f"( f0 ), "=f"( f1 ), "=f"( f2 ), "=f"( f3 )
+                    : "r"( tex ), "r"( dim ), "f"( x ), "f"( y ), "f"( z ), "f"( w ), "f"( level ), OPTIX_ASM_PTR( isResident )
+                    : );
+
+      rt_undefined_use( (int)f0 );
+      rt_undefined_use( (int)f1 );
+      rt_undefined_use( (int)f2 );
+      rt_undefined_use( (int)f3 );
+
+      return make_float4( f0, f1, f2, f3 );
+  }
+
+  static __forceinline__ __device__ uint4
+  rt_texture_lod_load_or_request_u_id( int tex, int dim, float x, float y, float z, float w, float level, bool* isResident )
+  {
+      unsigned int u0, u1, u2, u3;
+
+      asm volatile( "call (%0, %1, %2, %3), _rt_texture_lod_load_or_request_u_id, (%4, %5, %6, %7, %8, %9, %10, %11);"
+                    : "=r"( u0 ), "=r"( u1 ), "=r"( u2 ), "=r"( u3 )
+                    : "r"( tex ), "r"( dim ), "f"( x ), "f"( y ), "f"( z ), "f"( w ), "f"( level ), OPTIX_ASM_PTR( isResident )
+                    : );
+
+      rt_undefined_use( (int)u0 );
+      rt_undefined_use( (int)u1 );
+      rt_undefined_use( (int)u2 );
+      rt_undefined_use( (int)u3 );
+
+      return make_uint4( u0, u1, u2, u3 );
+  }
+
+  static __forceinline__ __device__ int4
+  rt_texture_lod_load_or_request_i_id( int tex, int dim, float x, float y, float z, float w, float level, bool* isResident )
+  {
+      int i0, i1, i2, i3;
+
+      asm volatile( "call (%0, %1, %2, %3), _rt_texture_lod_load_or_request_i_id, (%4, %5, %6, %7, %8, %9, %10, %11);"
+                    : "=r"( i0 ), "=r"( i1 ), "=r"( i2 ), "=r"( i3 )
+                    : "r"( tex ), "r"( dim ), "f"( x ), "f"( y ), "f"( z ), "f"( w ), "f"( level ), OPTIX_ASM_PTR( isResident )
+                    : );
+
+      rt_undefined_use( i0 );
+      rt_undefined_use( i1 );
+      rt_undefined_use( i2 );
+      rt_undefined_use( i3 );
+
+      return make_int4( i0, i1, i2, i3 );
+  }
+
+  static __forceinline__ __device__ float4 rt_texture_grad_load_or_request_f_id( int   tex,
+                                                                                 int   dim,
+                                                                                 float x,
+                                                                                 float y,
+                                                                                 float z,
+                                                                                 float w,
+                                                                                 float dPdx_x,
+                                                                                 float dPdx_y,
+                                                                                 float dPdx_z,
+                                                                                 float dPdy_x,
+                                                                                 float dPdy_y,
+                                                                                 float dPdy_z,
+                                                                                 bool* isResident )
+  {
+      float f0, f1, f2, f3;
+
+      asm volatile(
+          "call (%0, %1, %2, %3), _rt_texture_grad_load_or_request_f_id, (%4, %5, %6, %7, %8, %9, %10, %11, %12, %13, "
+          "%14, %15, %16);"
+          : "=f"( f0 ), "=f"( f1 ), "=f"( f2 ), "=f"( f3 )
+          : "r"( tex ), "r"( dim ), "f"( x ), "f"( y ), "f"( z ), "f"( w ), "f"( dPdx_x ), "f"( dPdx_y ), "f"( dPdx_z ),
+            "f"( dPdy_x ), "f"( dPdy_y ), "f"( dPdy_z ), OPTIX_ASM_PTR( isResident )
+          : );
+
+      rt_undefined_use( (int)f0 );
+      rt_undefined_use( (int)f1 );
+      rt_undefined_use( (int)f2 );
+      rt_undefined_use( (int)f3 );
+
+      return make_float4( f0, f1, f2, f3 );
+  }
+
+  static __forceinline__ __device__ uint4 rt_texture_grad_load_or_request_u_id( int   tex,
+                                                                                int   dim,
+                                                                                float x,
+                                                                                float y,
+                                                                                float z,
+                                                                                float w,
+                                                                                float dPdx_x,
+                                                                                float dPdx_y,
+                                                                                float dPdx_z,
+                                                                                float dPdy_x,
+                                                                                float dPdy_y,
+                                                                                float dPdy_z,
+                                                                                bool* isResident )
+  {
+      unsigned int u0, u1, u2, u3;
+
+      asm volatile(
+          "call (%0, %1, %2, %3), _rt_texture_grad_load_or_request_f_id, (%4, %5, %6, %7, %8, %9, %10, %11, %12, %13, "
+          "%14, %15, %16);"
+          : "=r"( u0 ), "=r"( u1 ), "=r"( u2 ), "=r"( u3 )
+          : "r"( tex ), "r"( dim ), "f"( x ), "f"( y ), "f"( z ), "f"( w ), "f"( dPdx_x ), "f"( dPdx_y ), "f"( dPdx_z ),
+            "f"( dPdy_x ), "f"( dPdy_y ), "f"( dPdy_z ), OPTIX_ASM_PTR( isResident )
+          : );
+
+      rt_undefined_use( (int)u0 );
+      rt_undefined_use( (int)u1 );
+      rt_undefined_use( (int)u2 );
+      rt_undefined_use( (int)u3 );
+
+      return make_uint4( u0, u1, u2, u3 );
+  }
+
+  static __forceinline__ __device__ int4 rt_texture_grad_load_or_request_i_id( int   tex,
+                                                                               int   dim,
+                                                                               float x,
+                                                                               float y,
+                                                                               float z,
+                                                                               float w,
+                                                                               float dPdx_x,
+                                                                               float dPdx_y,
+                                                                               float dPdx_z,
+                                                                               float dPdy_x,
+                                                                               float dPdy_y,
+                                                                               float dPdy_z,
+                                                                               bool* isResident )
+  {
+      int i0, i1, i2, i3;
+
+      asm volatile(
+          "call (%0, %1, %2, %3), _rt_texture_grad_load_or_request_f_id, (%4, %5, %6, %7, %8, %9, %10, %11, %12, %13, "
+          "%14, %15, %16);"
+          : "=r"( i0 ), "=r"( i1 ), "=r"( i2 ), "=r"( i3 )
+          : "r"( tex ), "r"( dim ), "f"( x ), "f"( y ), "f"( z ), "f"( w ), "f"( dPdx_x ), "f"( dPdx_y ), "f"( dPdx_z ),
+            "f"( dPdy_x ), "f"( dPdy_y ), "f"( dPdy_z ), OPTIX_ASM_PTR( isResident )
+          : );
+
+      rt_undefined_use( i0 );
+      rt_undefined_use( i1 );
+      rt_undefined_use( i2 );
+      rt_undefined_use( i3 );
+
+      return make_int4( i0, i1, i2, i3 );
+  }
+
+
   static __forceinline__ __device__ void* rt_buffer_get(void* buffer, unsigned int dim, unsigned int element_size,
                                                size_t i0_in, size_t i1_in, size_t i2_in, size_t i3_in)
   {
@@ -227,6 +429,23 @@ namespace optix {
     rt_undefined_use((int)tmp);
 #endif
     return tmp;
+  }
+
+  static __forceinline__ __device__ bool rt_load_or_request(void* buffer, unsigned int dim, unsigned int element_size,
+                                                            size_t i0_in, size_t i1_in, size_t i2_in, size_t i3_in, void* ptr )
+  {
+    optix::optix_size_t i0 = i0_in;
+    optix::optix_size_t i1 = i1_in;
+    optix::optix_size_t i2 = i2_in;
+    optix::optix_size_t i3 = i3_in;
+    int ret = 0;
+    asm volatile( "call (%0), _rt_load_or_request" OPTIX_BITNESS_SUFFIX ", (%1, %2, %3, %4, %5, %6, %7, %8);" :
+                  "=r"(ret) :
+                  OPTIX_ASM_PTR(buffer), "r"(dim), "r"(element_size),
+                  OPTIX_ASM_SIZE_T(i0), OPTIX_ASM_SIZE_T(i1), OPTIX_ASM_SIZE_T(i2), OPTIX_ASM_SIZE_T(i3),
+                  OPTIX_ASM_PTR(ptr) :
+                  );
+    return ret != 0;
   }
 
   static __forceinline__ __device__ void* rt_buffer_get_id(int id, unsigned int dim, unsigned int element_size,
@@ -343,6 +562,15 @@ namespace optix {
                  "r"(group), "f"(ox), "f"(oy), "f"(oz), "f"(dx), "f"(dy), "f"(dz),
                  "r"(ray_type), "f"(tmin), "f"(tmax), "f"(time), "r"(mask), "r"(flags), OPTIX_ASM_PTR(prd), "r"(prd_size) :
                  );
+  }
+
+  static __forceinline__ __device__ unsigned int rt_get_entry_point_index()
+  {
+    unsigned int ret;
+    asm volatile("call (%0), _rt_get_entry_point_index;" :
+                "=r"(ret) :
+                );
+    return ret;
   }
 
   static __forceinline__ __device__ bool rt_potential_intersection(float t)
@@ -533,6 +761,39 @@ namespace optix {
     rt_undefined_use((int)f1);
 
     return make_float2(f0, f1);
+  }
+
+  static __forceinline__ __device__  unsigned int rt_get_lowest_group_child_index()
+  {
+    unsigned int ret;
+
+    asm volatile( "call (%0), _rt_get_lowest_group_child_index, ();" :
+                  "=r"( ret ) :
+    );
+
+    return ret;
+  }
+
+  static __forceinline__ __device__  unsigned int rt_get_ray_flags()
+  {
+    unsigned int ret;
+
+    asm volatile( "call (%0), _rt_get_ray_flags, ();" :
+    "=r"( ret ) :
+      );
+
+    return ret;
+  }
+
+  static __forceinline__ __device__  unsigned int rt_get_ray_mask()
+  {
+    unsigned int ret;
+
+    asm volatile( "call (%0), _rt_get_ray_mask, ();" :
+    "=r"( ret ) :
+      );
+
+    return ret;
   }
 
 } /* end namespace optix */

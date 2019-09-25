@@ -31,7 +31,7 @@
 #ifndef __optix_optix_prime_h__
 #define __optix_optix_prime_h__
 
-#define OPTIX_PRIME_VERSION 60000  /* major =  OPTIX_PRIME_VERSION/10000,        *
+#define OPTIX_PRIME_VERSION 60500  /* major =  OPTIX_PRIME_VERSION/10000,        *
                                     * minor = (OPTIX_PRIME_VERSION%10000)/100,   *
                                     * micro =  OPTIX_PRIME_VERSION%100           */
 

@@ -27,6 +27,7 @@
  * OptiX public API Reference - Host side
  */
 
+
 #ifndef __optix_optix_host_h__
 #define __optix_optix_host_h__
 
@@ -183,9 +184,9 @@ extern "C" {
   *
   *   - @ref RT_GLOBAL_ATTRIBUTE_ENABLE_RTX          sizeof(int)
   *
-  * @ref RT_GLOBAL_ATTRIBUTE_ENABLE_RTX is an experimental attribute which sets the execution strategy
-  * used by Optix for the next context to be created.  This attribute may be deprecated in a future release.
-  * Possible values: 0 (legacy default), 1 (compile and link programs separately).
+  * @ref RT_GLOBAL_ATTRIBUTE_ENABLE_RTX sets the execution strategy used by Optix for the
+  * next context to be created.
+  * Possible values: 0 (legacy megakernel execution strategy), 1 (RTX execution strategy).
   *
   * @param[in]   attrib    Attribute to set
   * @param[in]   size      Size of the attribute being set
@@ -226,7 +227,7 @@ extern "C" {
   *   - @ref RT_GLOBAL_ATTRIBUTE_DISPLAY_DRIVER_VERSION_MINOR           sizeof(unsigend int)
   *
   * @ref RT_GLOBAL_ATTRIBUTE_ENABLE_RTX is an experimental setting which sets the execution strategy
-  * used by Optix for the next context to be created.  
+  * used by Optix for the next context to be created.
   *
   * @ref RT_GLOBAL_ATTRIBUTE_DISPLAY_DRIVER_VERSION_MAJOR is an attribute to query the major version of the display driver
   * found on the system. It's the first number in the driver version displayed as xxx.yy.
@@ -1635,16 +1636,18 @@ extern "C" {
   *   - @ref RT_CONTEXT_ATTRIBUTE_CPU_NUM_THREADS             sizeof(int)
   *   - @ref RT_CONTEXT_ATTRIBUTE_PREFER_FAST_RECOMPILES      sizeof(int)
   *   - @ref RT_CONTEXT_ATTRIBUTE_FORCE_INLINE_USER_FUNCTIONS sizeof(int)
-  *   - @ref RT_CONTEXT_ATTRIBUTE_DISK_CACHE_LOCATION         sizeof(char*)    
+  *   - @ref RT_CONTEXT_ATTRIBUTE_DISK_CACHE_LOCATION         sizeof(char*)
   *   - @ref RT_CONTEXT_ATTRIBUTE_DISK_CACHE_MEMORY_LIMITS    sizeof(RTSize[2])
+  *   - @ref RT_CONTEXT_ATTRIBUTE_MAX_CONCURRENT_LAUNCHES     sizeof(int)
+  *   - @ref RT_CONTEXT_ATTRIBUTE_PREFER_WATERTIGHT_TRAVERSAL sizeof(int)
   *
   * @ref RT_CONTEXT_ATTRIBUTE_CPU_NUM_THREADS sets the number of host CPU threads OptiX
   * can use for various tasks.
   *
-  * @ref RT_CONTEXT_ATTRIBUTE_PREFER_FAST_RECOMPILES is a hint about scene usage.  By 
-  * default OptiX produces device kernels that are optimized for the current scene.  Such 
+  * @ref RT_CONTEXT_ATTRIBUTE_PREFER_FAST_RECOMPILES is a hint about scene usage.  By
+  * default OptiX produces device kernels that are optimized for the current scene.  Such
   * kernels generally run faster, but must be recompiled after some types of scene
-  * changes, causing delays.  Setting PREFER_FAST_RECOMPILES to 1 will leave out some 
+  * changes, causing delays.  Setting PREFER_FAST_RECOMPILES to 1 will leave out some
   * scene-specific optimizations, producing kernels that generally run slower but are less
   * sensitive to changes in the scene.
   *
@@ -1659,8 +1662,14 @@ extern "C" {
   * will be thrown if OptiX is unable to create the cache database file at the specified
   * location for any reason (e.g., the path is invalid or the directory is not writable).
   * The location of the disk cache can be overridden with the environment variable \a
-  * OPTIX_CAHCE_PATH. This environment variable takes precedence over the RTcontext
-  * attribute.
+  * OPTIX_CACHE_PATH. This environment variable takes precedence over the RTcontext
+  * attribute. The default location depends on the operating system:
+  *
+  *   - Windows: %LOCALAPPDATA%\\NVIDIA\\OptixCache
+  *   - Linux:   /var/tmp/OptixCache_\<username\> (or /tmp/OptixCache_\<username\> if the first
+  *              choice is not usable), the underscore and username suffix are omitted if the
+  *              username cannot be obtained
+  *   - MacOS X: /Library/Application Support/NVIDIA/OptixCache
   *
   * @ref RT_CONTEXT_ATTRIBUTE_DISK_CACHE_MEMORY_LIMITS sets the low and high watermarks
   * for disk cache garbage collection.  The limits must be passed in as a two-element
@@ -1669,6 +1678,17 @@ extern "C" {
   * low limit.  Setting either limit to zero will disable garbage collection.  Garbage
   * collection is triggered whenever the cache data size exceeds the high watermark and
   * proceeds until the size reaches the low watermark.
+  *
+  * @ref RT_CONTEXT_ATTRIBUTE_MAX_CONCURRENT_LAUNCHES sets the maximum number of allowed
+  * concurrent asynchronous launches per device. The actual number of launches can be less than
+  * the set limit, and actual GPU scheduling may affect concurrency. This limit affects only
+  * asynchronous launches. Valid values are from 1 to the maximum number of CUDA streams
+  * supported by a device. Default value is 2.
+  *
+  * @ref RT_CONTEXT_ATTRIBUTE_PREFER_WATERTIGHT_TRAVERSAL sets whether or not OptiX should prefer
+  * to use a watertight traversal method or not. The default behaviour is preferring to use
+  * watertight traversal. Note that OptiX might still choose to decide otherwise though.
+  * Please see the Programming Guide for more information about the different traversal methods.
   *
   * @param[in]   context   The context object to be modified
   * @param[in]   attrib    Attribute to set
@@ -1709,8 +1729,9 @@ extern "C" {
   *   - @ref RT_CONTEXT_ATTRIBUTE_USED_HOST_MEMORY         sizeof(RTsize)
   *   - @ref RT_CONTEXT_ATTRIBUTE_AVAILABLE_DEVICE_MEMORY  sizeof(RTsize)
   *   - @ref RT_CONTEXT_ATTRIBUTE_DISK_CACHE_ENABLED       sizeof(int)
-  *   - @ref RT_CONTEXT_ATTRIBUTE_DISK_CACHE_LOCATION      sizeof(char**)    
+  *   - @ref RT_CONTEXT_ATTRIBUTE_DISK_CACHE_LOCATION      sizeof(char**)
   *   - @ref RT_CONTEXT_ATTRIBUTE_DISK_CACHE_MEMORY_LIMITS sizeof(RTSize[2])
+  *   - @ref RT_CONTEXT_ATTRIBUTE_MAX_CONCURRENT_LAUNCHES  sizeof(int)
   *
   * @ref RT_CONTEXT_ATTRIBUTE_MAX_TEXTURE_COUNT queries the maximum number of textures
   * handled by OptiX. For OptiX versions below 2.5 this value depends on the number of
@@ -1733,6 +1754,9 @@ extern "C" {
   *
   * @ref RT_CONTEXT_ATTRIBUTE_DISK_CACHE_MEMORY_LIMITS queries the low and high watermark values
   * for the OptiX disk cache.
+  *
+  * @ref RT_CONTEXT_ATTRIBUTE_MAX_CONCURRENT_LAUNCHES queries the number of concurrent asynchronous
+  * launches allowed per device.
   *
   * Some attributes are used to get per device information.  In contrast to @ref
   * rtDeviceGetAttribute, these attributes are determined by the context and are therefore
@@ -1875,7 +1899,7 @@ extern "C" {
   *
   * @ref rtContextSetStackSize sets the stack size for the given context to
   * \a bytes bytes. Not supported with the RTX execution strategy.
-  * With RTX execution strategy @ref rtContextSetMaxTraceDepth and @ref rtContextSetMaxCallableDepth
+  * With RTX execution strategy @ref rtContextSetMaxTraceDepth and @ref rtContextSetMaxCallableProgramDepth
   * should be used to control stack size.
   * Returns @ref RT_ERROR_INVALID_VALUE if context is not valid.
   *
@@ -1934,7 +1958,7 @@ extern "C" {
   *
   * <B>Description</B>
   *
-  * @ref rtContextSetMaxCallableProgramDepth sets the maximum call depth of a chain of callable programs 
+  * @ref rtContextSetMaxCallableProgramDepth sets the maximum call depth of a chain of callable programs
   * for the given context to \a maxDepth. This value is only used for stack size computation.
   * Only supported for RTX execution mode. Default value is 5.
   * Returns @ref RT_ERROR_INVALID_VALUE if context is not valid.
@@ -1965,7 +1989,7 @@ extern "C" {
   *
   * <B>Description</B>
   *
-  * @ref rtContextGetMaxCallableProgramDepth passes back the maximum callable program call depth 
+  * @ref rtContextGetMaxCallableProgramDepth passes back the maximum callable program call depth
   * associated with this context in \a maxDepth.
   * Returns @ref RT_ERROR_INVALID_VALUE if passed a \a NULL pointer.
   *
@@ -1996,7 +2020,7 @@ extern "C" {
   * <B>Description</B>
   *
   * @ref rtContextSetMaxTraceDepth sets the maximum trace depth for the given context to
-  * \a maxDepth. Only supported for RTX execution mode. Default value is 5.
+  * \a maxDepth. Only supported for RTX execution mode. Default value is 5. Maximum trace depth is 31.
   * Returns @ref RT_ERROR_INVALID_VALUE if context is not valid.
   *
   * @param[in]   context            The context node to be modified
@@ -2351,8 +2375,8 @@ extern "C" {
   * to @ref rtThrow is within the valid range from RT_EXCEPTION_USER to RT_EXCEPTION_USER_MAX.
   *
   * @ref RT_EXCEPTION_TRACE_DEPTH_EXCEEDED verifies that the depth of the @ref rtTrace
-  * tree does not exceed the limit of 31. This exception is only supported with the RTX execution
-  * strategy.
+  * tree does not exceed the configured trace depth (see @ref rtContextSetMaxTraceDepth). This
+  * exception is only supported with the RTX execution strategy.
   *
   * @ref RT_EXCEPTION_TEXTURE_ID_INVALID verifies that every access of a texture id is
   * valid, including use of RT_TEXTURE_ID_NULL and IDs out of bounds.
@@ -2363,8 +2387,10 @@ extern "C" {
   * @ref RT_EXCEPTION_INDEX_OUT_OF_BOUNDS checks that @ref rtIntersectChild and @ref
   * rtReportIntersection are called with a valid index.
   *
-  * @ref RT_EXCEPTION_STACK_OVERFLOW checks the runtime stack against overflow. The most
-  * common cause for an overflow is a too deep @ref rtTrace recursion tree.
+  * @ref RT_EXCEPTION_STACK_OVERFLOW checks the runtime stack against overflow. The most common
+  * cause for an overflow is a too small trace depth (see @ref rtContextSetMaxTraceDepth). In rare
+  * cases, stack overflows might not be detected unless @ref RT_EXCEPTION_TRACE_DEPTH_EXCEEDED is
+  * enabled as well.
   *
   * @ref RT_EXCEPTION_BUFFER_INDEX_OUT_OF_BOUNDS checks every read and write access to
   * @ref rtBuffer objects to be within valid bounds. This exception is supported with the RTX
@@ -3378,10 +3404,45 @@ extern "C" {
   * @ref rtProgramCreateFromPTXString,
   * @ref rtProgramCreateFromPTXStrings,
   * @ref rtProgramCreateFromPTXFile,
+  * @ref rtProgramCreateFromProgram,
   * @ref rtProgramDestroy
   *
   */
   RTresult RTAPI rtProgramCreateFromPTXFiles(RTcontext context, unsigned int n, const char** filenames, const char* programName, RTprogram* program);
+
+    /**
+  * @brief Creates a new program object
+  *
+  * @ingroup Program
+  *
+  * <B>Description</B>
+  *
+  * @ref rtProgramCreateFromProgram allocates and returns a handle to a new program object.
+  * The program code is taken from another program, but none of the other attributes are taken.
+  *
+  * @param[in]   context        The context to create the program in
+  * @param[in]   program_in     The program whose program code to use.
+  * @param[in]   program_out    Handle to the program to be created
+  *
+  * <B>Return values</B>
+  *
+  * Relevant return values:
+  * - @ref RT_SUCCESS
+  * - @ref RT_ERROR_INVALID_CONTEXT
+  * - @ref RT_ERROR_INVALID_VALUE
+  * - @ref RT_ERROR_MEMORY_ALLOCATION_FAILED
+  *
+  * <B>History</B>
+  *
+  * <B>See also</B>
+  * @ref RT_PROGRAM,
+  * @ref rtProgramCreateFromPTXString,
+  * @ref rtProgramCreateFromPTXStrings,
+  * @ref rtProgramCreateFromPTXFile,
+  * @ref rtProgramDestroy
+  *
+  */
+  RTresult RTAPI rtProgramCreateFromProgram(RTcontext context, RTprogram program_in, RTprogram* program_out);
 
 
   /**
@@ -3948,10 +4009,11 @@ extern "C" {
    *
    * <B>Description</B>
    * Geometry is intersected by rays if the ray's @ref RTvisibilitymask shares at
-   * least one bit with the geometry's mask. This mechanism allows for a number of
+   * least one bit with the group's mask. This mechanism allows for a number of
    * user-defined visibility groups that can be excluded from certain types of rays
    * as needed.
-   *
+   * Note that the visibility mask is not checked for the root node of a trace call.
+   * (It is assumed to be visible otherwise trace should not be called).
    * Note that the @pre mask is currently limited to 8 bits.
    *
    * @param[in] group   The group handle
@@ -5727,6 +5789,9 @@ extern "C" {
    * <B>Description</B>
    *
    * This function controls the @ref RTinstanceflags of the given geometry group.
+   * Note that flags are only considered when tracing against an RTgroup with this GeometryGroup
+   * as a child (potentially with Transforms).
+   * Tracing directly against the GeometryGroup will ignore the flags.
    * The flags override the @ref RTgeometryflags of the underlying geometry where appropriate.
    *
    * @param[in] group   The group handle
@@ -5785,10 +5850,11 @@ extern "C" {
    *
    * <B>Description</B>
    * Geometry is intersected by rays if the ray's @ref RTvisibilitymask shares at
-   * least one bit with the geometry's mask. This mechanism allows for a number of
+   * least one bit with the group's mask. This mechanism allows for a number of
    * user-defined visibility groups that can be excluded from certain types of rays
    * as needed.
-   *
+   * Note that the visibility mask is not checked for the root node of a trace call.
+   * (It is assumed to be visible otherwise trace should not be called).
    * Note that the @pre mask is currently limited to 8 bits.
    *
    * @param[in] group   The group handle
@@ -8296,13 +8362,13 @@ extern "C" {
   * Parameter \a vertexByteStride sets the stride in bytes between vertices.
   * Parameter \a positionFormat must be one of the following: RT_FORMAT_FLOAT3, RT_FORMAT_HALF3, RT_FORMAT_FLOAT2, RT_FORMAT_HALF2.
   * In case of formats RT_FORMAT_FLOAT2 or RT_FORMAT_HALF2 the third component is assumed to be zero, which can be useful for planar geometry.
-  * Calling this function overrides any previous call to anyone of the set(Motion)Vertices functions.
+  * Calling this function overrides any previous call to any of the set(Motion)Vertices functions.
   *
   * @param[in]   geometrytriangles            GeometryTriangles node to query for the primitive index offset
   * @param[in]   vertexCount                  Number of vertices of the geometry
   * @param[in]   vertexBuffer                 Buffer that holds the vertices of the triangles
-  * @param[in]   vertexByteStride             Stride in bytes between vertices
   * @param[in]   vertexBufferByteOffset       Offset in bytes to the first vertex in buffer vertexBuffer
+  * @param[in]   vertexByteStride             Stride in bytes between vertices
   * @param[in]   positionFormat               Format of the position attribute of a vertex
   *
   * <B>Return values</B>
@@ -8345,11 +8411,11 @@ extern "C" {
   * Parameter \a vertexMotionStepByteStride sets the stride in bytes between motion steps for a single vertex.
   * The stride parameters allow for two types of layouts of the motion data:
   * a) serialized: vertexByteStride = sizeof(Vertex), vertexMotionStepByteStride = vertexCount * vertexByteStride
-  * b) interleaved: motion_step_byte_stride = sizeof(Vertex), vertexByteStride = sizeof(Vertex) * motion_steps
+  * b) interleaved: vertexMotionStepByteStride = sizeof(Vertex), vertexByteStride = sizeof(Vertex) * motion_steps
   * Vertex N at time step i is at: vertexBuffer[N * vertexByteStride + i * vertexMotionStepByteStride + vertexBufferByteOffset]
   * Parameter \a positionFormat must be one of the following: RT_FORMAT_FLOAT3, RT_FORMAT_HALF3, RT_FORMAT_FLOAT2, RT_FORMAT_HALF2.
   * In case of formats RT_FORMAT_FLOAT2 or RT_FORMAT_HALF2 the third component is assumed to be zero, which can be useful for planar geometry.
-  * Calling this function overrides any previous call to anyone of the set(Motion)Vertices functions.
+  * Calling this function overrides any previous call to any of the set(Motion)Vertices functions.
   *
   * @param[in]   geometrytriangles               GeometryTriangles node to query for the primitive index offset
   * @param[in]   vertexCount                     Number of vertices for one motion step
@@ -8672,7 +8738,7 @@ extern "C" {
   *
   * <B>Description</B>
   * @ref rtGeometryTrianglesGetMaterialCount returns the number of materials that are used with \a geometrytriangles.
-  * As default there is one material slot.
+  * By default there is one material slot.
 
   *
   * @param[in]   geometrytriangles    GeometryTriangles node handle
@@ -8702,15 +8768,15 @@ extern "C" {
   *
   * <B>Description</B>
   * @ref rtGeometryTrianglesSetMaterialCount sets the number of materials that are used with \a geometrytriangles.
-  * As default, there is one material slot.
+  * By default there is one material slot.
   * This number must be equal to the number of materials that is set at the GeometryInstance where \a geometrytriangles is attached to.
   * Multi-material support for GeometryTriangles is limited to a fixed partition of the geometry into sets of triangles.
-  * Each triangle set maps to one material slot (within range [0;numMaterials]).
+  * Each triangle set maps to one material slot (within range [0, numMaterials-1]).
   * The mapping is set via @ref rtGeometryTrianglesSetMaterialIndices.
   * The actual materials are set at the GeometryInstance.
   * The geometry can be instanced when attached to multiple GeometryInstances.
   * In that case, the materials attached to each GeometryInstance can differ (effectively causing different materials per instance of the geometry).
-  * \a numMaterials must be >=1 and <= 2^16.
+  * \a numMaterials must be >=1 and <=2^16.
   *
   * @param[in]   geometrytriangles    GeometryTriangles node handle
   * @param[in]   numMaterials         Number of materials used with this geometry
@@ -8744,7 +8810,7 @@ extern "C" {
   *
   * @ref rtGeometryTrianglesSetMaterialIndices set the material slot per triangle of \a geometrytriangles.
   * Hence, buffer \a materialIndexBuffer must hold triangleCount entries.
-  * Every material index must be in range [0; numMaterials-1] (see @ref rtGeometryTrianglesSetMaterialCount).
+  * Every material index must be in range [0, numMaterials-1] (see @ref rtGeometryTrianglesSetMaterialCount).
   * Parameter \a materialIndexBufferByteOffset can be used to specify a byte offset to the first index in buffer \a materialIndexBuffer.
   * Parameter \a materialIndexByteStride sets the stride in bytes between indices.
   * Parameter \a materialIndexFormat must be one of the following: RT_FORMAT_UNSIGNED_INT, RT_FORMAT_UNSIGNED_SHORT, RT_FORMAT_UNSIGNED_BYTE.
@@ -8784,14 +8850,15 @@ extern "C" {
   * @ingroup GeometryTriangles
   *
   * <B>Description</B>
-  * @ref rtGeometryTrianglesSetFlagsPerMaterial can be used to set geometry-specific flags that will eventually
+  * @ref rtGeometryTrianglesSetFlagsPerMaterial can be used to set geometry-specific flags that may
   * change the behavior of traversal when intersecting the geometry.
-  * Note that the flags are evaluated at acceleration-structure-build time.
+  * Note that the flags are evaluated at acceleration structure build time.
   * An acceleration must be marked dirty for changes to the flags to take effect.
   * Setting the flags RT_GEOMETRY_FLAG_NO_SPLITTING and/or RT_GEOMETRY_FLAG_DISABLE_ANYHIT should be dependent on the
   * material that is used for the intersection.
-  * Therefore, the flags are set per material slot (with the actual material binding begin set at the GeomteryInstance).
-  * If the geometry is instanced and different instances apply different materials to the geometry, the per-material geometry-specific flags need to apply to the materials of all instances.
+  * Therefore, the flags are set per material slot (with the actual material binding being set on the GeomteryInstance).
+  * If the geometry is instanced and different instances apply different materials to the geometry, the per-material geometry-specific flags
+  * need to apply to the materials of all instances.
   * Example with two instances with each having two materials, node graph:
   *        G
   *       / \
@@ -8809,14 +8876,21 @@ extern "C" {
   * RT_GEOMETRY_FLAG_NO_SPLITTING needs to be set for material index 1, if M1 or M3 require it.
   * RT_GEOMETRY_FLAG_DISABLE_ANYHIT should be set for material index 1, if M1 and M3 allow it.
   *
-  * Setting RT_GEOMETRY_FLAG_NO_SPLITTING prevents splitting the primitive during the bvh build.
-  * Splitting is done to increase performance, but as a side-effect may result in multiple executions of the any hit program for a single intersection.
-  * To avoid further side effects (e.g., multiple accumulations of a value) that may result of a multiple execution, RT_GEOMETRY_FLAG_NO_SPLITTING needs to be set.
-  * RT_GEOMETRY_FLAG_DISABLE_ANYHIT is an optimization due to which the execution of the any hit program is skipped.
+  * Setting RT_GEOMETRY_FLAG_NO_SPLITTING prevents splitting the primitive during the acceleration structure build.
+  * Splitting is done to increase performance, but as a side-effect may result in multiple executions of
+  * the any-hit program for a single intersection.
+  * To avoid further side effects (e.g., multiple accumulations of a value) that may result of a multiple execution,
+  * RT_GEOMETRY_FLAG_NO_SPLITTING needs to be set.
+  * RT_GEOMETRY_FLAG_DISABLE_ANYHIT is an optimization due to which the execution of the any-hit program is skipped.
   * If possible, the flag should be set.
-  * Note that even if no any hit program is set on a material, this flag needs to be set to skip the any hit program.
-  * This requirement is because the information whether or not to skip the any hit program needs to be available at bvh build time (while materials can change afterwards without a bvh rebuild).
-  * Note that the final decision whether or not to execute the any hit program at run time also depends on the flags set on the ray as well as the geometry group that this geometry is part of.
+  * Note that if no any-hit program is set on a material by the user, a no-op any-hit program will be used.
+  * Therefore, this flag still needs to be set to skip the execution of any any-hit program.
+  * An automatic determination of whether to set the DISABLE_ANYHIT flag is not possible since the information
+  * whether or not to skip the any-hit program depends on the materials that are used, and this information
+  * may not be available at acceleration build time.
+  * For example, materials can change afterwards (e.g., between frames) without a rebuild of an acceleration.
+  * Note that the final decision whether or not to execute the any-hit program at run time also depends on the flags set on
+  * the ray as well as the geometry group that this geometry is part of.
   *
   * @param[in]   geometrytriangles    GeometryTriangles node handle
   * @param[in]   materialIndex        The material index for which to set the flags
@@ -9009,24 +9083,24 @@ extern "C" {
   RTresult RTAPI rtMaterialGetContext(RTmaterial material, RTcontext* context);
 
   /**
-  * @brief Sets the closest hit program associated with a (material, ray type) tuple
+  * @brief Sets the closest-hit program associated with a (material, ray type) tuple
   *
   * @ingroup Material
   *
   * <B>Description</B>
   *
-  * @ref rtMaterialSetClosestHitProgram specifies a closest hit program to associate
+  * @ref rtMaterialSetClosestHitProgram specifies a closest-hit program to associate
   * with a (material, ray type) tuple. \a material specifies the material of
   * interest and should be a value returned by @ref rtMaterialCreate.
   * \a rayTypeIndex specifies the type of ray to which the program applies and
   * should be a value less than the value returned by @ref rtContextGetRayTypeCount.
-  * \a program specifies the target closest hit program which applies to
+  * \a program specifies the target closest-hit program which applies to
   * the tuple (\a material, \a rayTypeIndex) and should be a value returned by
   * either @ref rtProgramCreateFromPTXString or @ref rtProgramCreateFromPTXFile.
   *
   * @param[in]   material         Specifies the material of the (material, ray type) tuple to modify
   * @param[in]   rayTypeIndex     Specifies the ray type of the (material, ray type) tuple to modify
-  * @param[in]   program          Specifies the closest hit program to associate with the (material, ray type) tuple
+  * @param[in]   program          Specifies the closest-hit program to associate with the (material, ray type) tuple
   *
   * <B>Return values</B>
   *
@@ -9052,24 +9126,24 @@ extern "C" {
   RTresult RTAPI rtMaterialSetClosestHitProgram(RTmaterial material, unsigned int rayTypeIndex, RTprogram program);
 
   /**
-  * @brief Returns the closest hit program associated with a (material, ray type) tuple
+  * @brief Returns the closest-hit program associated with a (material, ray type) tuple
   *
   * @ingroup Material
   *
   * <B>Description</B>
   *
-  * @ref rtMaterialGetClosestHitProgram queries the closest hit program associated
+  * @ref rtMaterialGetClosestHitProgram queries the closest-hit program associated
   * with a (material, ray type) tuple. \a material specifies the material of
   * interest and should be a value returned by @ref rtMaterialCreate.
   * \a rayTypeIndex specifies the target ray type and should be a value
   * less than the value returned by @ref rtContextGetRayTypeCount.
   * If all parameters are valid, \a *program sets to the handle of the
-  * any hit program associated with the tuple (\a material, \a rayTypeIndex).
+  * any-hit program associated with the tuple (\a material, \a rayTypeIndex).
   * Otherwise, the call has no effect and returns @ref RT_ERROR_INVALID_VALUE.
   *
   * @param[in]   material         Specifies the material of the (material, ray type) tuple to query
   * @param[in]   rayTypeIndex     Specifies the type of ray of the (material, ray type) tuple to query
-  * @param[out]  program          Returns the closest hit program associated with the (material, ray type) tuple
+  * @param[out]  program          Returns the closest-hit program associated with the (material, ray type) tuple
   *
   * <B>Return values</B>
   *
@@ -9090,24 +9164,24 @@ extern "C" {
   RTresult RTAPI rtMaterialGetClosestHitProgram(RTmaterial material, unsigned int rayTypeIndex, RTprogram* program);
 
   /**
-  * @brief Sets the any hit program associated with a (material, ray type) tuple
+  * @brief Sets the any-hit program associated with a (material, ray type) tuple
   *
   * @ingroup Material
   *
   * <B>Description</B>
   *
-  * @ref rtMaterialSetAnyHitProgram specifies an any hit program to associate with a
+  * @ref rtMaterialSetAnyHitProgram specifies an any-hit program to associate with a
   * (material, ray type) tuple. \a material specifies the target material and
   * should be a value returned by @ref rtMaterialCreate. \a rayTypeIndex specifies
   * the type of ray to which the program applies and should be a value less than
   * the value returned by @ref rtContextGetRayTypeCount. \a program specifies the
-  * target any hit program which applies to the tuple (\a material,
+  * target any-hit program which applies to the tuple (\a material,
   * \a rayTypeIndex) and should be a value returned by either
   * @ref rtProgramCreateFromPTXString or @ref rtProgramCreateFromPTXFile.
   *
   * @param[in]   material         Specifies the material of the (material, ray type) tuple to modify
   * @param[in]   rayTypeIndex     Specifies the type of ray of the (material, ray type) tuple to modify
-  * @param[in]   program          Specifies the any hit program to associate with the (material, ray type) tuple
+  * @param[in]   program          Specifies the any-hit program to associate with the (material, ray type) tuple
   *
   * <B>Return values</B>
   *
@@ -9133,24 +9207,24 @@ extern "C" {
   RTresult RTAPI rtMaterialSetAnyHitProgram(RTmaterial material, unsigned int rayTypeIndex, RTprogram program);
 
   /**
-  * @brief Returns the any hit program associated with a (material, ray type) tuple
+  * @brief Returns the any-hit program associated with a (material, ray type) tuple
   *
   * @ingroup Material
   *
   * <B>Description</B>
   *
-  * @ref rtMaterialGetAnyHitProgram queries the any hit program associated
+  * @ref rtMaterialGetAnyHitProgram queries the any-hit program associated
   * with a (material, ray type) tuple. \a material specifies the material of
   * interest and should be a value returned by @ref rtMaterialCreate.
   * \a rayTypeIndex specifies the target ray type and should be a value
   * less than the value returned by @ref rtContextGetRayTypeCount.
   * if all parameters are valid, \a *program sets to the handle of the
-  * any hit program associated with the tuple (\a material, \a rayTypeIndex).
+  * any-hit program associated with the tuple (\a material, \a rayTypeIndex).
   * Otherwise, the call has no effect and returns @ref RT_ERROR_INVALID_VALUE.
   *
   * @param[in]   material         Specifies the material of the (material, ray type) tuple to query
   * @param[in]   rayTypeIndex     Specifies the type of ray of the (material, ray type) tuple to query
-  * @param[out]  program          Returns the any hit program associated with the (material, ray type) tuple
+  * @param[out]  program          Returns the any-hit program associated with the (material, ray type) tuple
   *
   * <B>Return values</B>
   *
@@ -9396,6 +9470,52 @@ extern "C" {
   *
   */
   RTresult RTAPI rtTextureSamplerCreate(RTcontext context, RTtexturesampler* texturesampler);
+
+  /**
+  * @brief Structure describing a block of demand loaded memory.
+  *
+  * @ingroup Buffer
+  *
+  * <B>Description</B>
+  *
+  * @ref \RTmemoryblock describes a one-, two- or three-dimensional block of bytes in memory
+  * for a \a mipLevel that are interpreted as elements of \a format.
+  *
+  * The region is defined by the elements beginning at (x, y, z) and extending to
+  * (x + width - 1, y + height - 1, z + depth - 1).  The element size must be taken into account
+  * when computing addresses into the memory block based on the size of elements.  There is no
+  * padding between elements within a row, e.g. along the x direction.
+  *
+  * The starting address of the block is given by \a baseAddress and data is stored at addresses
+  * increasing from \a baseAddress.  One-dimensional blocks ignore the \a rowPitch and
+  * \a planePitch members and are described entirely by the \a baseAddress of the block.  Two
+  * dimensional blocks have contiguous bytes in every row, starting with \a baseAddress, but
+  * may have gaps between subsequent rows along the height dimension.  The \a rowPitch describes
+  * the offset in bytes between subsequent rows within the two-dimensional block.  Similarly,
+  * the \a planePitch describes the offset in bytes between subsequent planes within the depth
+  * dimension.
+  *
+  * <B>History</B>
+  *
+  * @ref RTmemoryblock was introduced in OptiX 6.1
+  *
+  * <B>See also</B>
+  * @ref RTbuffercallback
+  * @ref RTtexturesamplercallback
+  */
+  typedef struct {
+    RTformat format;
+    void* baseAddress;
+    unsigned int mipLevel;
+    unsigned int x;
+    unsigned int y;
+    unsigned int z;
+    unsigned int width;
+    unsigned int height;
+    unsigned int depth;
+    unsigned int rowPitch;
+    unsigned int planePitch;
+  } RTmemoryblock;
 
   /**
   * @brief Destroys a texture sampler object
@@ -10140,10 +10260,10 @@ extern "C" {
   * the user can change the buffer's content on that device through the pointer. OptiX must then synchronize the new buffer contents to all devices.
   * These synchronization copies occur at every @ref rtContextLaunch "rtContextLaunch", unless the buffer is created with @ref RT_BUFFER_COPY_ON_DIRTY.
   * In this case, @ref rtBufferMarkDirty can be used to notify OptiX that the buffer has been dirtied and must be synchronized.
-
-  * The flag @ref RT_BUFFER_DISCARD_HOST_MEMORY can only be used in combination with @ref RT_BUFFER_INPUT. The data will be 
-  * synchronized to the devices as soon as the buffer is unmapped from the host using @ref rtBufferUnmap or 
-  * @ref rtBufferUnmapEx and the memory allocated on the host will be deallocated. 
+  *
+  * The flag @ref RT_BUFFER_DISCARD_HOST_MEMORY can only be used in combination with @ref RT_BUFFER_INPUT. The data will be
+  * synchronized to the devices as soon as the buffer is unmapped from the host using @ref rtBufferUnmap or
+  * @ref rtBufferUnmapEx and the memory allocated on the host will be deallocated.
   * It is preferred to map buffers created with the @ref RT_BUFFER_DISCARD_HOST_MEMORY using @ref rtBufferMapEx with the
   * @ref RT_BUFFER_MAP_WRITE_DISCARD option enabled. If it is mapped using @ref rtBufferMap or the @ref RT_BUFFER_MAP_WRITE
   * option instead, the data needs to be synchronized to the host during mapping.
@@ -10177,6 +10297,96 @@ extern "C" {
   *
   */
   RTresult RTAPI rtBufferCreate(RTcontext context, unsigned int bufferdesc, RTbuffer* buffer);
+
+  /**
+  * @brief Callback function used to demand load data for a buffer.
+  *
+  * @ingroup Buffer
+  *
+  * <B>Description</B>
+  *
+  * @ref RTbuffercallback is implemented by the application.  It is invoked by OptiX for each
+  * \a requestedPage of the demand loaded \a buffer referenced by the previous launch that was not
+  * resident in device memory.  The callback should either fill the provided \a block buffer with
+  * the requested \a pageDataSizeInBytes of data and return \a true, or return \a false.  When the
+  * callback returns \a false, no data is transferred to the \a buffer.
+  *
+  * <b>CAUTION</b>: OptiX will invoke callback functions from multiple threads in order to satisfy
+  * pending requests in parallel.  A user provided callback function should not allow exceptions to
+  * escape from their callback function.
+  *
+  * @param[in]    callbackData  An arbitrary data pointer from the application when the callback was registered.
+  * @param[in]    buffer        Handle of the buffer requesting pages.
+  * @param[in]    block         A pointer to the @ref RTmemoryblock describing the memory to be filled with data.
+  *
+  * <B>Return values</B>
+  *
+  * \a non-zero   The \a block buffer was filled with \a pageDataSizeInBytes of data.
+  * \a zero       No data was written.  No data will be transferred to the \a buffer.
+  *               The same \a block may be passed to the callback again after the next launch.
+  *
+  * <B>History</B>
+  *
+  * @ref RTbuffercallback was introduced in OptiX 6.1
+  *
+  * <B>See also</B>
+  * @ref RTmemoryblock
+  * @ref rtBufferCreateFromCallback
+  */
+  typedef int (*RTbuffercallback)(void* callbackData, RTbuffer buffer, RTmemoryblock* block);
+
+  /**
+  * @brief Creates a buffer whose contents are loaded on demand.
+  *
+  * @ingroup Buffer
+  *
+  * <B>Description</B>
+  *
+  * @ref rtBufferCreateFromCallback allocates and returns a new handle to a new buffer object in \a *buffer associated
+  * with \a context.  The backing storage of the buffer is managed by OptiX, but is filled on demand by the application.
+  * The backing storage is allocated in multiples of pages.  Each page is a uniform size as described by the
+  * \a RT_BUFFER_ATTRIBUTE_PAGE_SIZE attribute.  The backing storage may be smaller than the total size of storage needed
+  * for the buffer, with OptiX managing the storage in conjunction with the application supplied \a callback.  A buffer
+  * is specified by a bitwise \a or combination of a \a type and \a flags in \a bufferdesc.  The only supported type is
+  * @ref RT_BUFFER_INPUT as only input buffers can be demand loaded.
+  *
+  * The supported flags are:
+  *
+  * -  @ref RT_BUFFER_LAYERED
+  * -  @ref RT_BUFFER_CUBEMAP
+  *
+  * If RT_BUFFER_LAYERED flag is set, buffer depth specifies the number of layers, not the depth of a 3D buffer.
+  * If RT_BUFFER_CUBEMAP flag is set, buffer depth specifies the number of cube faces, not the depth of a 3D buffer.
+  * See details in @ref rtBufferSetSize3D
+  *
+  * It is an error to call @ref rtBufferGetDevicePointer, @ref rtBufferMap or @ref rtBufferUnmap for a demand loaded buffer.
+  *
+  * Returns @ref RT_ERROR_INVALID_VALUE if either \a callback or \a buffer is \a NULL.
+  *
+  * @param[in]   context      The context to create the buffer in.
+  * @param[in]   bufferdesc   Bitwise \a or combination of the \a type and \a flags of the new buffer.
+  * @param[in]   callback     The demand load callback.  Most not be NULL.
+  * @param[in]   callbackData An arbitrary pointer from the application that is passed to the callback.  This may be \a NULL.
+  * @param[out]  buffer       The return handle for the buffer object.
+  *
+  * <B>Return values</B>
+  *
+  * Relevant return values:
+  * - @ref RT_SUCCESS
+  * - @ref RT_ERROR_INVALID_CONTEXT
+  * - @ref RT_ERROR_INVALID_VALUE
+  * - @ref RT_ERROR_MEMORY_ALLOCATION_FAILED
+  *
+  * <B>History</B>
+  *
+  * @ref rtBufferCreateFromCallback was introduced in OptiX 6.1
+  *
+  * <B>See also</B>
+  * @ref RTbuffercallback
+  * @ref rtBufferDestroy
+  *
+  */
+  RTresult RTAPI rtBufferCreateFromCallback(RTcontext context, unsigned int bufferdesc, RTbuffercallback callback, void* callbackData, RTbuffer* buffer);
 
   /**
   * @brief Destroys a buffer object
@@ -11453,7 +11663,9 @@ extern "C" {
   *
   * <B>Description</B>
   *
-  * @ref rtBufferGetAttribute is used to query buffer attributes. For a list of available attributes, please refer to @ref rtBufferSetAttribute.
+  * @ref rtBufferGetAttribute is used to query buffer attributes. For a list of available attributes that can be set, please refer to @ref rtBufferSetAttribute.
+  * The attribute \a RT_BUFFER_ATTRIBUTE_PAGE_SIZE can only be queried and returns the page size of a demand loaded buffer in bytes.  The size of the data returned
+  * for this attribute is \a sizeof(int).
   *
   * @param[in]   buffer             The buffer to query the attribute from
   * @param[in]   attrib             The attribute to query
@@ -11853,7 +12065,7 @@ extern "C" {
   * @param[in]  stage         The post-processing stage to append to the command list
   * @param[in]  launchWidth   This is a hint for the width of the launch dimensions to use for this stage.
   *                           The stage can ignore this and use a suitable launch width instead.
-  * @param[in]  launchWidth   This is a hint for the height of the launch dimensions to use for this stage.
+  * @param[in]  launchHeight  This is a hint for the height of the launch dimensions to use for this stage.
   *                           The stage can ignore this and use a suitable launch height instead.
   *
   * <B>Return values</B>
@@ -11878,13 +12090,49 @@ extern "C" {
   RTresult RTAPI rtCommandListAppendPostprocessingStage(RTcommandlist list, RTpostprocessingstage stage, RTsize launchWidth, RTsize launchHeight);
 
   /**
-  * @brief Append a launch to the command list \a list
+  * @brief Append a 1D launch to the command list \a list
   *
   * @ingroup CommandList
   *
   * <B>Description</B>
   *
-  * @ref rtCommandListAppendLaunch2D appends a context launch to the command list \a list. It is
+  * @ref rtCommandListAppendLaunch1D appends a 1D context launch to the command list \a list. It is
+  * invalid to call @ref rtCommandListAppendLaunch1D after calling @ref rtCommandListFinalize.
+  *
+  * @param[in]  list              Handle of the command list to append to
+  * @param[in]  entryPointIndex   The initial entry point into the kernel
+  * @param[in]  launchWidth       Width of the computation grid
+  *
+  * <B>Return values</B>
+  *
+  * Relevant return values:
+  * - @ref RT_SUCCESS
+  * - @ref RT_ERROR_INVALID_VALUE
+  *
+  * <B>History</B>
+  *
+  * @ref rtCommandListAppendLaunch2D was introduced in OptiX 6.1.
+  *
+  * <B>See also</B>
+  * @ref rtCommandListCreate,
+  * @ref rtCommandListDestroy,
+  * @ref rtCommandListAppendPostprocessingStage,
+  * @ref rtCommandListAppendLaunch2D,
+  * @ref rtCommandListAppendLaunch3D,
+  * @ref rtCommandListFinalize,
+  * @ref rtCommandListExecute
+  *
+  */
+  RTresult RTAPI rtCommandListAppendLaunch1D(RTcommandlist list, unsigned int entryPointIndex, RTsize launchWidth);
+
+  /**
+  * @brief Append a 2D launch to the command list \a list
+  *
+  * @ingroup CommandList
+  *
+  * <B>Description</B>
+  *
+  * @ref rtCommandListAppendLaunch2D appends a 2D context launch to the command list \a list. It is
   * invalid to call @ref rtCommandListAppendLaunch2D after calling @ref rtCommandListFinalize.
   *
   * @param[in]  list              Handle of the command list to append to
@@ -11906,11 +12154,155 @@ extern "C" {
   * @ref rtCommandListCreate,
   * @ref rtCommandListDestroy,
   * @ref rtCommandListAppendPostprocessingStage,
+  * @ref rtCommandListAppendLaunch1D,
+  * @ref rtCommandListAppendLaunch3D,
   * @ref rtCommandListFinalize,
   * @ref rtCommandListExecute
   *
   */
   RTresult RTAPI rtCommandListAppendLaunch2D(RTcommandlist list, unsigned int entryPointIndex, RTsize launchWidth, RTsize launchHeight);
+
+  /**
+  * @brief Append a 3D launch to the command list \a list
+  *
+  * @ingroup CommandList
+  *
+  * <B>Description</B>
+  *
+  * @ref rtCommandListAppendLaunch3D appends a 3D context launch to the command list \a list. It is
+  * invalid to call @ref rtCommandListAppendLaunch3D after calling @ref rtCommandListFinalize.
+  *
+  * @param[in]  list              Handle of the command list to append to
+  * @param[in]  entryPointIndex   The initial entry point into the kernel
+  * @param[in]  launchWidth       Width of the computation grid
+  * @param[in]  launchHeight      Height of the computation grid
+  * @param[in]  launchDepth       Depth of the computation grid
+  *
+  * <B>Return values</B>
+  *
+  * Relevant return values:
+  * - @ref RT_SUCCESS
+  * - @ref RT_ERROR_INVALID_VALUE
+  *
+  * <B>History</B>
+  *
+  * @ref rtCommandListAppendLaunch2D was introduced in OptiX 6.1.
+  *
+  * <B>See also</B>
+  * @ref rtCommandListCreate,
+  * @ref rtCommandListDestroy,
+  * @ref rtCommandListAppendPostprocessingStage,
+  * @ref rtCommandListAppendLaunch1D,
+  * @ref rtCommandListAppendLaunch2D,
+  * @ref rtCommandListFinalize,
+  * @ref rtCommandListExecute
+  *
+  */
+  RTresult RTAPI rtCommandListAppendLaunch3D(RTcommandlist list, unsigned int entryPointIndex, RTsize launchWidth, RTsize launchHeight, RTsize launchDepth);
+
+  /**
+  * @brief Sets the devices to use for this command list.
+  *
+  * @ingroup CommandList
+  *
+  * <B>Description</B>
+  *
+  * @ref rtCommandListSetDevices specifies a list of hardware devices to use for this command list. This
+  * must be a subset of the currently active devices, see @ref rtContextSetDevices. If not set then all the
+  * active devices will be used.
+  *
+  * @param[in]  list      Handle of the command list to set devices for
+  * @param[in]  count     The number of devices in the list
+  * @param[in]  devices   The list of devices
+  *
+  * <B>Return values</B>
+  *
+  * Relevant return values:
+  * - @ref RT_SUCCESS
+  * - @ref RT_ERROR_INVALID_VALUE
+  *
+  * <B>History</B>
+  *
+  * <B>See also</B>
+  * @ref rtContextSetDevices,
+  * @ref rtCommandListCreate,
+  * @ref rtCommandListDestroy,
+  * @ref rtCommandListAppendPostprocessingStage,
+  * @ref rtCommandListAppendLaunch2D,
+  * @ref rtCommandListExecute
+  *
+  */
+  RTresult RTAPI rtCommandListSetDevices(RTcommandlist list, unsigned int count, const int* devices);
+
+    /**
+  * @brief Retrieve a list of hardware devices being used by the command list.
+  *
+  * @ingroup CommandList
+  *
+  * <B>Description</B>
+  *
+  * @ref rtCommandListGetDevices retrieves a list of hardware devices used by the command list.
+  * Note that the device numbers are  OptiX device ordinals, which may not be the same as CUDA device ordinals.
+  * Use @ref rtDeviceGetAttribute with @ref RT_DEVICE_ATTRIBUTE_CUDA_DEVICE_ORDINAL to query the CUDA device
+  * corresponding to a particular OptiX device.
+  *
+  * Note that if the list of set devices is empty then all active devices will be used.
+  *
+  * @param[in]   list      The command list to which the hardware list is applied
+  * @param[out]  devices   Return parameter for the list of devices. The memory must be able to hold entries
+  * numbering least the number of devices as returned by @ref rtCommandListGetDeviceCount
+  *
+  * <B>Return values</B>
+  *
+  * Relevant return values:
+  * - @ref RT_SUCCESS
+  * - @ref RT_ERROR_INVALID_CONTEXT
+  * - @ref RT_ERROR_INVALID_VALUE
+  *
+  * <B>History</B>
+  *
+  * <B>See also</B>
+  * @ref rtCommandListSetDevices,
+  * @ref rtCommandListCreate,
+  * @ref rtCommandListDestroy,
+  * @ref rtCommandListAppendPostprocessingStage,
+  * @ref rtCommandListAppendLaunch2D,
+  * @ref rtCommandListExecute
+  *
+  */
+  RTresult RTAPI rtCommandListGetDevices(RTcommandlist list, int* devices);
+
+  /**
+  * @brief Query the number of devices currently being used by the command list.
+  *
+  * @ingroup Context
+  *
+  * <B>Description</B>
+  *
+  * @ref rtCommandListGetDeviceCount queries the number of devices currently being used.
+  *
+  * @param[in]   list      The command list containing the devices
+  * @param[out]  count     Return parameter for the device count
+  *
+  * <B>Return values</B>
+  *
+  * Relevant return values:
+  * - @ref RT_SUCCESS
+  * - @ref RT_ERROR_INVALID_CONTEXT
+  * - @ref RT_ERROR_INVALID_VALUE
+  *
+  * <B>History</B>
+  *
+  * <B>See also</B>
+  * @ref rtCommandListSetDevices,
+  * @ref rtCommandListCreate,
+  * @ref rtCommandListDestroy,
+  * @ref rtCommandListAppendPostprocessingStage,
+  * @ref rtCommandListAppendLaunch2D,
+  * @ref rtCommandListExecute
+  *
+  */
+  RTresult RTAPI rtCommandListGetDeviceCount(RTcommandlist list, unsigned int* count);
 
   /**
   * @brief Finalize the command list. This must be done before executing the command list.
@@ -12030,23 +12422,22 @@ extern "C" {
   * program that performs attribute computation.  RTprograms can be either generated with
   * @ref rtProgramCreateFromPTXFile or @ref rtProgramCreateFromPTXString. An attribute
   * program is optional.  If no attribute program is specified, a default attribute
-  * program will be provided.  Attributes are computed after intersection and before any
-  * hit or closest hit programs that require those attributes.  No assumptions about the
+  * program will be provided.  Attributes are computed after intersection and before any-
+  * hit or closest-hit programs that require those attributes.  No assumptions about the
   * precise invocation time should be made.
+  * The default attribute program provides the attribute rtTriangleBarycentrics of type float2.
   *
-  * The default attribute program will provide the following attributes:
-  *   float2 barycentrics;
-  *   unsigned int instanceid;
+  * Names are case sensitive and types must match.  To use the attribute, declare the following
+  *    rtDeclareVariable( float2, barycentrics, attribute rtTriangleBarycentrics, );
   *
-  * Names are case sensitive and types must match.  To use the attributes, declare the following
-  *    rtDeclareVariable( float2, barycentrics, attribute barycentrics, );
-  *    rtDeclareVariable( unsigned int, instanceid, attribute instanceid, );
-  *
-  * If you provide an attribute program, the following device side functions will be available.
+  * If you provide an attribute program, the following device side functions will be available:
   *    float2 rtGetTriangleBarycentrics();
-  *    unsigned int rtGetInstanceId();
+  *    unsigned int rtGetPrimitiveIndex();
+  *    bool rtIsTriangleHit();
+  *    bool rtIsTriangleHitFrontFace();
+  *    bool rtIsTriangleHitBackFace();
   *
-  * These device functions are only available in attribute programs.
+  * besides other semantics such as the ray time for motion blur.
   *
   * @param[in]   geometrytriangles  The geometrytriangles node for which to set the attribute program
   * @param[in]   program            A handle to the attribute program
@@ -12060,17 +12451,15 @@ extern "C" {
   *
   * <B>History</B>
   *
-  * @ref rtGeometryTrianglesSetAttributeProgram was introduced in OptiX 6.0. 
+  * @ref rtGeometryTrianglesSetAttributeProgram was introduced in OptiX 6.0.
   *
   * <B>See also</B>
   * @ref rtGeometryTrianglesGetAttributeProgram,
   * @ref rtProgramCreateFromPTXFile,
   * @ref rtProgramCreateFromPTXString,
   * @ref rtGetTriangleBarycentrics,
-  * @ref rtGetInstanceId
   *
   */
-
   RTresult RTAPI rtGeometryTrianglesSetAttributeProgram( RTgeometrytriangles geometrytriangles, RTprogram program );
 
 
@@ -12117,10 +12506,10 @@ extern "C" {
   * <B>Description</B>
   *
   * @ref rtGeometryTrianglesDeclareVariable declares a \a variable attribute of a \a geometrytriangles object with
-  * a specified \a name. 
+  * a specified \a name.
   *
   * @param[in]   geometrytriangles     A geometry node
-  * @param[in]   name                  The name of the variable 
+  * @param[in]   name                  The name of the variable
   * @param[out]  v                     A pointer to a handle to the variable
   *
   * <B>Return values</B>
@@ -12156,7 +12545,7 @@ extern "C" {
   * a \a geometrytriangles object.
   *
   * @param[in]   geometrytriangles    A geometrytriangles object
-  * @param[in]   name                 Thee name of the variable 
+  * @param[in]   name                 Thee name of the variable
   * @param[out]  v                    A pointer to a handle to the variable
   *
   * <B>Return values</B>
@@ -12227,7 +12616,7 @@ extern "C" {
   * of variables attached to a \a geometrytriangles object.
   *
   * @param[in]   geometrytriangles   A geometrytriangles node
-  * @param[out]  v                   A pointer to an unsigned int
+  * @param[out]  count               A pointer to an unsigned int
   *
   * <B>Return values</B>
   *

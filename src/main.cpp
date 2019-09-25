@@ -16,7 +16,7 @@
 #endif
 
 #define DENOISER_MAJOR_VERSION 2
-#define DENOISER_MINOR_VERSION 3
+#define DENOISER_MINOR_VERSION 4
 
 // Our global image handles
 OIIO::ImageBuf* input_beauty = nullptr;

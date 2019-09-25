@@ -740,6 +740,20 @@ namespace optix {
     /// Create buffer from GL buffer object.  See @ref rtBufferCreateFromGLBO
     Buffer createBufferFromGLBO(unsigned int type, unsigned int vbo);
 
+    /// Create demand loaded buffer from a callback.  See @ref rtBufferCreateFromCallback
+    Buffer createBufferFromCallback(unsigned int type, RTbuffercallback callback, void* callbackData);
+    /// Create a demand loaded buffer from a callback with given format.  See @ref rtBufferCreateFromCallback and @ref rtBufferSetForamt.
+    Buffer createBufferFromCallback(unsigned int type, RTbuffercallback callback, void* callbackData, RTformat format);
+    /// Create a demand loaded buffer from a callback with given RTbuffertype, format and dimension.
+    /// See @ref rtBufferCreateFromCallback, @ref rtBufferSetFormat and @ref rtBufferSetSize1D.
+    Buffer createBufferFromCallback(unsigned int type, RTbuffercallback callback, void* callbackData, RTformat format, RTsize width);
+    /// Create a demand loaded buffer from a callback with given RTbuffertype, format and dimension.
+    /// See @ref rtBufferCreateFromCallback, @ref rtBufferSetFormat and @ref rtBufferSetSize2D.
+    Buffer createBufferFromCallback(unsigned int type, RTbuffercallback callback, void* callbackData, RTformat format, RTsize width, RTsize height);
+    /// Create a demand loaded buffer from a callback with given RTbuffertype, format and dimension.
+    /// See @ref rtBufferCreateFromCallback, @ref rtBufferSetFormat and @ref rtBufferSetSize3D.
+    Buffer createBufferFromCallback(unsigned int type, RTbuffercallback callback, void* callbackData, RTformat format, RTsize width, RTsize height, RTsize depth);
+
     /// Create TextureSampler from GL image.  See @ref rtTextureSamplerCreateFromGLImage
     TextureSampler createTextureSamplerFromGLImage(unsigned int id, RTgltarget target);
 
@@ -767,6 +781,8 @@ namespace optix {
     GeometryInstance createGeometryInstance( Geometry geometry, Iterator matlbegin, Iterator matlend );
     /// Create a geometry instance with a GeometryTriangles object and a set of associated materials.  See
     /// @ref rtGeometryInstanceCreate, @ref rtGeometryInstanceSetMaterialCount, and @ref rtGeometryInstanceSetMaterial
+    template<class Iterator>
+    GeometryInstance createGeometryInstance( GeometryTriangles geometrytriangles, Iterator matlbegin, Iterator matlend );
     GeometryInstance createGeometryInstance( GeometryTriangles geometry, Material mat );
 
     /// See @ref rtGroupCreate
@@ -799,13 +815,13 @@ namespace optix {
     /// See @ref rtProgramCreateFromPTXStrings
     Program createProgramFromPTXStrings( const std::vector<std::string>& ptxStrings, const std::string& program_name );
     Program createProgramFromPTXStrings( const std::vector<const char*>& ptxStrings, const std::string& program_name );
+    Program createProgramFromProgram( Program program_in );
 
     /// See @ref rtSelectorCreate
     Selector createSelector();
 
     /// See @ref rtTextureSamplerCreate
     TextureSampler createTextureSampler();
-    /// @}
 
     /// @{
     /// Create a builtin postprocessing stage. See @ref rtPostProcessingStageCreateBuiltin.
@@ -2118,20 +2134,45 @@ namespace optix {
     /// Append a postprocessing stage to the command list. See @ref rtCommandListAppendPostprocessingStage.
     void appendPostprocessingStage(PostprocessingStage stage, RTsize launch_width, RTsize launch_height);
 
-    /// Append a launch2d command to the command list. See @ref rtCommandListAppendLaunch2D.
+    /// Append a 1D launch to the command list. See @ref rtCommandListAppendLaunch1D.
+    void appendLaunch(unsigned int entryIndex, RTsize launch_width);
+
+    /// Append a 2D launch to the command list. See @ref rtCommandListAppendLaunch2D.
     void appendLaunch(unsigned int entryIndex, RTsize launch_width, RTsize launch_height);
+
+    /// Append a 3D launch to the command list. See @ref rtCommandListAppendLaunch3D.
+    void appendLaunch( unsigned int entryIndex, RTsize launch_width, RTsize launch_height, RTsize launch_depth );
     /// @}
 
     /// @{
     /// Finalize the command list so that it can be called, later. See @ref rtCommandListFinalize.
     void finalize();
+    /// @}
 
+    /// @{
+    /// See @ref rtCommandListSetDevices. Sets the devices to use for this command list.
+    template<class Iterator>
+    void setDevices( Iterator begin, Iterator end );
+
+    /// See @ref rtContextGetDevices. Returns the list of devices set for this command list.
+    std::vector<int> getDevices() const;
+    /// @}
+
+    /// @{
     // Excecute the command list. Can only be called after finalizing it. See @ref rtCommandListExecute.
     void execute();
     /// @}
 
     /// Get the underlying OptiX C API RTcommandlist opaque pointer.
     RTcommandlist get();
+
+    /// @{
+    /// Sets the cuda stream for this command list. See @ref rtCommandListSetCudaStream.
+    void setCudaStream( void* stream );
+
+    /// Gets the cuda stream set for this command list. See @ref rtCommandListGetCudaStream.
+    void getCudaStream( void** stream );
+    /// @}
 
   private:
     typedef RTcommandlist api_t;
@@ -2414,6 +2455,48 @@ namespace optix {
     return Buffer::take(buffer);
   }
 
+  inline Buffer ContextObj::createBufferFromCallback(unsigned int type, RTbuffercallback callback, void* callbackData)
+  {
+    RTbuffer buffer;
+    checkError( rtBufferCreateFromCallback( m_context, type, callback, callbackData, &buffer ) );
+    return Buffer::take(buffer);
+  }
+
+  inline Buffer ContextObj::createBufferFromCallback(unsigned int type, RTbuffercallback callback, void* callbackData, RTformat format)
+  {
+    RTbuffer buffer;
+    checkError( rtBufferCreateFromCallback( m_context, type, callback, callbackData, &buffer ) );
+    checkError( rtBufferSetFormat( buffer, format ) );
+    return Buffer::take(buffer);
+  }
+
+  inline Buffer ContextObj::createBufferFromCallback(unsigned int type, RTbuffercallback callback, void* callbackData, RTformat format, RTsize width)
+  {
+    RTbuffer buffer;
+    checkError( rtBufferCreateFromCallback( m_context, type, callback, callbackData, &buffer ) );
+    checkError( rtBufferSetFormat( buffer, format ) );
+    checkError( rtBufferSetSize1D( buffer, width ) );
+    return Buffer::take(buffer);
+  }
+
+  inline Buffer ContextObj::createBufferFromCallback(unsigned int type, RTbuffercallback callback, void* callbackData, RTformat format, RTsize width, RTsize height)
+  {
+    RTbuffer buffer;
+    checkError( rtBufferCreateFromCallback( m_context, type, callback, callbackData, &buffer ) );
+    checkError( rtBufferSetFormat( buffer, format ) );
+    checkError( rtBufferSetSize2D( buffer, width, height ) );
+    return Buffer::take(buffer);
+  }
+
+  inline Buffer ContextObj::createBufferFromCallback(unsigned int type, RTbuffercallback callback, void* callbackData, RTformat format, RTsize width, RTsize height, RTsize depth)
+  {
+    RTbuffer buffer;
+    checkError( rtBufferCreateFromCallback( m_context, type, callback, callbackData, &buffer ) );
+    checkError( rtBufferSetFormat( buffer, format ) );
+    checkError( rtBufferSetSize3D( buffer, width, height, depth ) );
+    return Buffer::take(buffer);
+  }
+
   inline TextureSampler ContextObj::createTextureSamplerFromGLImage(unsigned int id, RTgltarget target)
   {
     RTtexturesampler textureSampler;
@@ -2478,10 +2561,25 @@ namespace optix {
     return result;
   }
 
-  inline GeometryInstance ContextObj::createGeometryInstance( GeometryTriangles geometry, Material mat )
+  template<class Iterator>
+  GeometryInstance ContextObj::createGeometryInstance( GeometryTriangles geometrytriangles, Iterator matlbegin, Iterator matlend)
   {
     GeometryInstance result = createGeometryInstance();
-    result->setGeometryTriangles( geometry );
+    result->setGeometryTriangles( geometrytriangles );
+    unsigned int count = 0;
+    for( Iterator iter = matlbegin; iter != matlend; ++iter )
+      ++count;
+    result->setMaterialCount( count );
+    unsigned int index = 0;
+    for(Iterator iter = matlbegin; iter != matlend; ++iter, ++index )
+      result->setMaterial( index, *iter );
+    return result;
+  }
+
+  inline GeometryInstance ContextObj::createGeometryInstance( GeometryTriangles geometrytriangles, Material mat )
+  {
+    GeometryInstance result = createGeometryInstance();
+    result->setGeometryTriangles( geometrytriangles );
     result->setMaterialCount( 1 );
     result->setMaterial( 0, mat );
     return result;
@@ -2590,6 +2688,13 @@ namespace optix {
     RTprogram program;
     unsigned int n = static_cast<unsigned int>(ptxStrings.size());
     checkError( rtProgramCreateFromPTXStrings( m_context, n, const_cast<const char**>(&ptxStrings[0]), program_name.c_str(), &program ) );
+    return Program::take( program );
+  }
+
+  inline Program ContextObj::createProgramFromProgram( Program program_in )
+  {
+    RTprogram program;
+    checkError( rtProgramCreateFromProgram( m_context, program_in->get(), &program ) );
     return Program::take( program );
   }
 
@@ -4366,10 +4471,40 @@ namespace optix {
     checkError(rtCommandListAppendPostprocessingStage(m_list, stage->get(), launch_width, launch_height), context);
   }
 
-  inline void CommandListObj::appendLaunch(unsigned int entryIndex, RTsize launch_width, RTsize launch_height)
+  inline void CommandListObj::appendLaunch(unsigned int entryIndex, RTsize launch_width)
   {
     Context context = getContext();
-    checkError(rtCommandListAppendLaunch2D(m_list, entryIndex, launch_width, launch_height), context);
+    checkError(rtCommandListAppendLaunch1D(m_list, entryIndex, launch_width), context);
+  }
+
+  inline void CommandListObj::appendLaunch( unsigned int entryIndex, RTsize launch_width, RTsize launch_height )
+  {
+      Context context = getContext();
+      checkError( rtCommandListAppendLaunch2D( m_list, entryIndex, launch_width, launch_height ), context );
+  }
+
+  inline void CommandListObj::appendLaunch( unsigned int entryIndex, RTsize launch_width, RTsize launch_height, RTsize launch_depth )
+  {
+      Context context = getContext();
+      checkError( rtCommandListAppendLaunch3D( m_list, entryIndex, launch_width, launch_height, launch_depth ), context );
+  }
+
+  template<class Iterator> inline
+      void CommandListObj::setDevices( Iterator begin, Iterator end )
+  {
+      std::vector<int> devices( begin, end );
+      checkError( rtCommandListSetDevices( m_list, static_cast<unsigned int>(devices.size()), &devices[0] ) );
+  }
+
+  inline std::vector<int> CommandListObj::getDevices() const
+  {
+      // Initialize with the number of enabled devices
+      unsigned int count = 0;
+      rtCommandListGetDeviceCount( m_list, &count );
+      std::vector<int> devices( count );
+      if( count > 0)
+          checkError( rtCommandListGetDevices( m_list, &devices[0] ) );
+      return devices;
   }
 
   inline void CommandListObj::finalize()
@@ -4382,6 +4517,18 @@ namespace optix {
   {
     Context context = getContext();
     checkError(rtCommandListExecute(m_list), context);
+  }
+
+  inline void CommandListObj::setCudaStream( void* stream )
+  {
+    Context context = getContext();
+    checkError( rtCommandListSetCudaStream( m_list, stream ) );
+  }
+
+  inline void CommandListObj::getCudaStream( void** stream )
+  {
+      Context context = getContext();
+      checkError( rtCommandListGetCudaStream( m_list, stream ) );
   }
 
   inline RTcommandlist CommandListObj::get()

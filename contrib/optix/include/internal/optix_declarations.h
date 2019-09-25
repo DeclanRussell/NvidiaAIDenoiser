@@ -348,7 +348,8 @@ typedef enum
   RT_DEVICE_ATTRIBUTE_TCC_DRIVER,                 /*!< TCC driver sizeof(int) */
   RT_DEVICE_ATTRIBUTE_CUDA_DEVICE_ORDINAL,        /*!< CUDA device ordinal sizeof(int) */
   RT_DEVICE_ATTRIBUTE_PCI_BUS_ID,                 /*!< PCI Bus Id */
-  RT_DEVICE_ATTRIBUTE_COMPATIBLE_DEVICES          /*!< Ordinals of compatible devices sizeof(int=N) + N*sizeof(int) */
+  RT_DEVICE_ATTRIBUTE_COMPATIBLE_DEVICES,         /*!< Ordinals of compatible devices sizeof(int=N) + N*sizeof(int) */
+  RT_DEVICE_ATTRIBUTE_RTCORE_VERSION              /*!< RT core version (0 for no support, 10 for version 1.0) sizeof(int) */
 } RTdeviceattribute;
 
 /*! Global attributes */
@@ -376,6 +377,8 @@ typedef enum
   RT_CONTEXT_ATTRIBUTE_PUBLIC_VENDOR_KEY,                    /*!< variable          */
   RT_CONTEXT_ATTRIBUTE_DISK_CACHE_LOCATION,                  /*!< sizeof(char*)     */
   RT_CONTEXT_ATTRIBUTE_DISK_CACHE_MEMORY_LIMITS,             /*!< sizeof(RTsize[2]) */
+  RT_CONTEXT_ATTRIBUTE_PREFER_WATERTIGHT_TRAVERSAL,          /*!< sizeof(int)       */
+  RT_CONTEXT_ATTRIBUTE_MAX_CONCURRENT_LAUNCHES,              /*!< sizeof(int)       */
   RT_CONTEXT_ATTRIBUTE_AVAILABLE_DEVICE_MEMORY = 0x10000000  /*!< sizeof(RTsize)    */
 } RTcontextattribute;
 
@@ -385,7 +388,8 @@ typedef enum
   RT_BUFFER_ATTRIBUTE_STREAM_FORMAT,                          /*!< Format string */
   RT_BUFFER_ATTRIBUTE_STREAM_BITRATE,                         /*!< sizeof(int) */
   RT_BUFFER_ATTRIBUTE_STREAM_FPS,                             /*!< sizeof(int) */
-  RT_BUFFER_ATTRIBUTE_STREAM_GAMMA                            /*!< sizeof(float) */
+  RT_BUFFER_ATTRIBUTE_STREAM_GAMMA,                           /*!< sizeof(float) */
+  RT_BUFFER_ATTRIBUTE_PAGE_SIZE                               /*!< sizeof(int) */
 } RTbufferattribute;
 
 /*! Motion border modes*/
@@ -412,20 +416,57 @@ typedef enum {
 /*! Material-dependent flags set on Geometry/GeometryTriangles */
 typedef enum {
   RT_GEOMETRY_FLAG_NONE            = 0x00, /*!< No special flags set */
-  RT_GEOMETRY_FLAG_DISABLE_ANYHIT  = 0x01, /*!< Opaque flag, any hit program will be skipped */
-  RT_GEOMETRY_FLAG_NO_SPLITTING    = 0x02, /*!< Disable primitive splitting to avoid potential duplicate any hit program execution for a single intersection */
+  RT_GEOMETRY_FLAG_DISABLE_ANYHIT  = 0x01, /*!< Disable any-hit program execution (execution will be skipped,including the no-op any-hit program
+                                                used when an any-hit program is not specified).
+                                                Can be overridden by ray and instance flags, precedence: RTrayflags > RTinstanceflags > RTgeometryflags */
+  RT_GEOMETRY_FLAG_NO_SPLITTING    = 0x02, /*!< Disable primitive splitting to avoid potential multiple any-hit program execution for a single intersection */
 } RTgeometryflags;
 
 /*! Instance flags which override the behavior of geometry. */
 typedef enum {
   RT_INSTANCE_FLAG_NONE                     = 0u,       /*!< No special flag set */
-  RT_INSTANCE_FLAG_DISABLE_TRIANGLE_CULLING = 1u << 0,  /*!< Prevent triangles from getting culled */
-  RT_INSTANCE_FLAG_FLIP_TRIANGLE_FACING     = 1u << 1,  /*!< Flip triangle orientation. This affects front/backface culling. */
-  RT_INSTANCE_FLAG_DISABLE_ANYHIT           = 1u << 2,  /*!< Disable any-hit programs.
+  RT_INSTANCE_FLAG_DISABLE_TRIANGLE_CULLING = 1u << 0,  /*!< Prevent triangles from getting culled due to face orientation (overrides ray culling flags). */
+  RT_INSTANCE_FLAG_FLIP_TRIANGLE_FACING     = 1u << 1,  /*!< Flip triangle orientation. This affects front/back face culling. */
+  RT_INSTANCE_FLAG_DISABLE_ANYHIT           = 1u << 2,  /*!< Disable any-hit program execution (including the no-op any-hit program
+                                                             used when an any-hit program is not specified).
                                                              This may yield significantly higher performance even in cases
-                                                             where no any-hit programs are set. */
-  RT_INSTANCE_FLAG_ENFORCE_ANYHIT           = 1u << 3   /*!< Override @ref RT_GEOMETRY_FLAG_DISABLE_ANYHIT */
+                                                             where no any-hit programs are set.
+                                                             Mutually exclusive with RT_INSTANCE_FLAG_FORCE_ANYHIT.
+                                                             If set, overrides any potentially set @ref RT_RAY_FLAG_FORCE_ANYHIT, @ref RT_RAY_FLAG_DISABLE_ANYHIT, @ref RT_GEOMETRY_FLAG_DISABLE_ANYHIT.
+                                                             Can be overridden by ray flag @ref RT_RAY_FLAG_FORCE_ANYHIT.
+                                                             Precedence: RTrayflags > RTinstanceflags > RTgeometryflags */
+  RT_INSTANCE_FLAG_FORCE_ANYHIT             = 1u << 3   /*!< Force any-hit program execution.
+                                                             Mutually exclusive with RT_INSTANCE_FLAG_DISABLE_ANYHIT.
+                                                             If set, overrides any potentially set @ref RT_RAY_FLAG_FORCE_ANYHIT, @ref RT_RAY_FLAG_DISABLE_ANYHIT, @ref RT_GEOMETRY_FLAG_DISABLE_ANYHIT.
+                                                             Can be overridden by ray flag @ref RT_RAY_FLAG_DISABLE_ANYHIT.
+                                                             Overriding precedence: RTrayflags > RTinstanceflags > RTgeometryflags */
 } RTinstanceflags;
+
+/*! Ray flags */
+typedef enum {
+  RT_RAY_FLAG_NONE                          = 0u,
+  RT_RAY_FLAG_DISABLE_ANYHIT                = 1u << 0, /*!< Disable any-hit program execution for the ray (execution will be skipped,including the no-op any-hit program
+                                                            used when an any-hit program is not specified).
+                                                            Mutually exclusive with RT_RAY_FLAG_FORCE_ANYHIT.
+                                                            If set, overrides any potentially set @ref RT_INSTANCE_FLAG_FORCE_ANYHIT.
+                                                            Overriding precedence: RTrayflags > RTinstanceflags > RTgeometryflags */
+  RT_RAY_FLAG_FORCE_ANYHIT                  = 1u << 1, /*!< Force any-hit program execution for the ray. See @ref RT_RAY_FLAG_DISABLE_ANYHIT.
+                                                            Mutually exclusive with RT_RAY_FLAG_DISABLE_ANYHIT.
+                                                            If set, overrides any potentially set @ref RT_GEOMETRY_FLAG_DISABLE_ANYHIT, @ref RT_INSTANCE_FLAG_DISABLE_ANYHIT.
+                                                            Overriding precedence: RTrayflags > RTinstanceflags > RTgeometryflags */
+  RT_RAY_FLAG_TERMINATE_ON_FIRST_HIT        = 1u << 2, /*!< Terminate the ray after the first hit, also reports the first hit as closest hit. */
+  RT_RAY_FLAG_DISABLE_CLOSESTHIT            = 1u << 3, /*!< Disable closest-hit program execution for the ray. */
+  RT_RAY_FLAG_CULL_BACK_FACING_TRIANGLES    = 1u << 4, /*!< Do not intersect triangle back faces. */
+  RT_RAY_FLAG_CULL_FRONT_FACING_TRIANGLES   = 1u << 5, /*!< Do not intersect triangle front faces. */
+  RT_RAY_FLAG_CULL_DISABLED_ANYHIT          = 1u << 6, /*!< Do not intersect geometry which disables any-hit programs (due to any geometry, instance, or ray flag). */
+  RT_RAY_FLAG_CULL_ENABLED_ANYHIT           = 1u << 7  /*!< Do not intersect geometry which executes any-hit programs (i.e., forced or not disabled any-hit program execution, this includes a potential no-op any-hit program). */
+} RTrayflags;
+
+typedef unsigned int RTvisibilitymask;
+
+enum {
+  RT_VISIBILITY_ALL = 0xFFu             /*!< Default @ref RTvisibilitymask */
+};
 
 /*! Sentinel values */
 typedef enum { 
@@ -443,25 +484,6 @@ typedef enum {
 typedef enum {
   RT_POSTPROCESSING_STAGE_ID_NULL = 0 /*!< sentinel for describing a non-existent post-processing stage id */
 } RTpostprocessingstagenull;
-
-/*! Ray flags */
-typedef enum {
-  RT_RAY_FLAG_NONE                          = 0u,
-  RT_RAY_FLAG_DISABLE_ANYHIT                = 1u << 0, /*!< Disables any-hit programs for the ray. */
-  RT_RAY_FLAG_ENFORCE_ANYHIT                = 1u << 1, /*!< Forces any-hit program execution for the ray. */
-  RT_RAY_FLAG_TERMINATE_ON_FIRST_HIT        = 1u << 2, /*!< Terminates the ray after the first hit. */
-  RT_RAY_FLAG_DISABLE_CLOSESTHIT            = 1u << 3, /*!< Disables closest-hit programs for the ray. */
-  RT_RAY_FLAG_CULL_BACK_FACING_TRIANGLES    = 1u << 4, /*!< Do not intersect triangle back faces. */
-  RT_RAY_FLAG_CULL_FRONT_FACING_TRIANGLES   = 1u << 5, /*!< Do not intersect triangle front faces. */
-  RT_RAY_FLAG_CULL_DISABLED_ANYHIT          = 1u << 6, /*!< Do not intersect geometry which disables any-hit programs. */
-  RT_RAY_FLAG_CULL_ENFORCED_ANYHIT          = 1u << 7  /*!< Do not intersect geometry which enforces any-hit programs. */
-} RTrayflags;
-
-typedef unsigned int RTvisibilitymask;
-
-enum {
-  RT_VISIBILITY_ALL = 0xFFu             /*!< Default @ref RTvisibilitymask */
-};
 
 #ifdef __cplusplus
 } /* extern "C" */

@@ -18,7 +18,7 @@
  * INABILITY TO USE THIS SOFTWARE, EVEN IF NVIDIA HAS BEEN ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGES
  */
- 
+
  /**
  * @file   optix_device.h
  * @author NVIDIA Corporation
@@ -37,8 +37,8 @@
  *
 \******************************************************************************/
 
-#ifndef __optix_optix_cuda__internal_h__
-#define __optix_optix_cuda__internal_h__
+#ifndef __optix_optix_device_h__
+#define __optix_optix_device_h__
 
 #include "internal/optix_datatypes.h"
 #include "internal/optix_declarations.h"
@@ -147,9 +147,9 @@ namespace optix {
 
 /**
   * @brief Opaque handle to a OptiX object
-  * 
+  *
   * @ingroup CUDACTypes
-  * 
+  *
   * <B>Description</B>
   *
   * @ref rtObject is an opaque handle to an OptiX object of any type. To set or query
@@ -166,16 +166,16 @@ namespace optix {
   * one of the generic type @ref rtObject.
   *
   * <B>History</B>
-  * 
+  *
   * @ref rtObject was introduced in OptiX 1.0.
-  * 
+  *
   * <B>See also</B>
   * @ref rtVariableSetObject,
   * @ref rtVariableGetObject,
   * @ref rtTrace,
   * @ref rtTextureSampler,
   * @ref rtBuffer
-  * 
+  *
   */
 struct rtObject {
 protected:
@@ -187,11 +187,11 @@ protected:
 
 /**
   * @brief Variable declaration
-  * 
+  *
   * @ingroup CUDACDeclarations
-  * 
+  *
   * <B>Description</B>
-  * 
+  *
   * @ref rtDeclareVariable declares variable \a name of the specified
   * \a type.  By default, the variable name will be matched against a
   * variable declared on the API object using the lookup hierarchy for the
@@ -214,6 +214,7 @@ protected:
   * - \b rtLaunchIndex - The launch invocation index. Type must be one of \a unsigned int, \a uint2, \a uint3, \a int, \a int2, \a int3 and is read-only.
   * - \b rtLaunchDim - The size of each dimension of the launch. The values range from 1 to the launch size in that dimension. Type must be one of \a unsigned int, \a uint2, \a uint3, \a int, \a int2, \a int3 and is read-only.
   * - \b rtCurrentRay - The currently active ray, valid only when a call to @ref rtTrace is active.  The vector is \em not guaranteed to be normalized.  Type must be \a optix::Ray and is read-only.
+  * - \b rtCurrentTime - The current ray time.  Type must be \a float and is read-only.
   * - \b rtIntersectionDistance - The current closest hit distance, valid only when a call to @ref rtTrace is active. Type must be \a float and is read-only.
   * - \b rtRayPayload - The struct passed into the most recent @ref rtTrace call and is read-write.
   * - \b attribute \a name - A named attribute passed from the intersection program to a closest-hit or any-hit program.  The types must match in both sets of programs.  This variable is read-only in the closest-hit or any-hit program and is written in the intersection program.
@@ -222,12 +223,12 @@ protected:
   * @param[in]  name        Name of the variable
   * @param[in]  semantic    Semantic name
   * @param[in]  annotation  Annotation for this variable
-  * 
+  *
   * <B>History</B>
-  * 
+  *
   * - @ref rtDeclareVariable was introduced in OptiX 1.0.
   * - \a rtLaunchDim was introduced in OptiX 2.0.
-  * 
+  *
   * <B>See also</B>
   * @ref rtDeclareAnnotation,
   * @ref rtVariableGetAnnotation,
@@ -237,7 +238,7 @@ protected:
   * @ref rtGeometryInstanceDeclareVariable,
   * @ref rtGeometryDeclareVariable,
   * @ref rtMaterialDeclareVariable
-  * 
+  *
   */
 #define rtDeclareVariable(type, name, semantic, annotation)    \
   namespace rti_internal_typeinfo { \
@@ -260,13 +261,13 @@ protected:
 
 /**
   * @brief Annotation declaration
-  * 
+  *
   * @ingroup CUDACDeclarations
-  * 
+  *
   * <B>Description</B>
-  * 
+  *
   * @ref rtDeclareAnnotation sets the annotation \a annotation of the given
-  * variable \a name.  Typically annotations are declared using an argument to 
+  * variable \a name.  Typically annotations are declared using an argument to
   * @ref rtDeclareVariable, but variables of type @ref rtBuffer and @ref rtTextureSampler
   * are declared using templates, so separate annotation attachment is required.
   *
@@ -276,12 +277,12 @@ protected:
   * <B>Valid annotations</B>
   *
   * The macro @ref rtDeclareAnnotation uses the C pre-processor's "stringification"
-  * feature to turn the literal text of the annotation argument into a string 
-  * constant.  The pre-processor will backslash-escape quotes and backslashes 
-  * within the text of the annotation.  Leading and trailing whitespace will be 
-  * ignored, and sequences of whitespace in the middle of the text is converted to 
-  * a single space character in the result.  The only restriction the C-PP places 
-  * on the text is that it may not contain a comma character unless it is either 
+  * feature to turn the literal text of the annotation argument into a string
+  * constant.  The pre-processor will backslash-escape quotes and backslashes
+  * within the text of the annotation.  Leading and trailing whitespace will be
+  * ignored, and sequences of whitespace in the middle of the text is converted to
+  * a single space character in the result.  The only restriction the C-PP places
+  * on the text is that it may not contain a comma character unless it is either
   * quoted or contained within parens: "," or (,).
   *
   * Example(s):
@@ -307,15 +308,15 @@ protected:
   *
   * @param[in]  variable    Variable to annotate
   * @param[in]  annotation  Annotation metadata
-  * 
+  *
   * <B>History</B>
-  * 
+  *
   * @ref rtDeclareAnnotation was introduced in OptiX 1.0.
-  * 
+  *
   * <B>See also</B>
   * @ref rtDeclareVariable,
   * @ref rtVariableGetAnnotation
-  * 
+  *
   */
 #define rtDeclareAnnotation(variable, annotation) \
   namespace rti_internal_annotation { \
@@ -331,17 +332,17 @@ protected:
    Example: rtCallableProgram(float, doStuff, ());
  */
 
-template<typename T> struct rtCallableProgramSizeofWrapper { static const size_t value = sizeof(T); }; 
+template<typename T> struct rtCallableProgramSizeofWrapper { static const size_t value = sizeof(T); };
 template<> struct rtCallableProgramSizeofWrapper<void> { static const size_t value = 0; };
 
 
 /**
   * @brief Callable Program Declaration
-  * 
+  *
   * @ingroup CUDACDeclarations
-  * 
+  *
   * <B>Description</B>
-  * 
+  *
   * @ref rtCallableProgram declares callable program \a name, which will appear
   * to be a callable function with the specified return type and list of arguments.
   * This callable program must be matched against a
@@ -358,20 +359,20 @@ template<> struct rtCallableProgramSizeofWrapper<void> { static const size_t val
   *  // With RT_USE_TEMPLATED_RTCALLABLEPROGRAM defined
   *  rtDeclareVariable(rtCallableProgram<float3(float3, float)>, modColor);
   *@endcode
-  * 
+  *
   * @param[in]  return_type    Return type of the callable program
   * @param[in]  function_name  Name of the callable program
   * @param[in]  parameter_list Parameter_List of the callable program
-  * 
+  *
   * <B>History</B>
-  * 
+  *
   * @ref rtCallableProgram was introduced in OptiX 3.0.
-  * 
+  *
   * <B>See also</B>
   * @ref rtDeclareVariable
   * @ref rtCallableProgramId
   * @ref rtCallableProgramX
-  * 
+  *
   */
 #ifdef RT_USE_TEMPLATED_RTCALLABLEPROGRAM
 #  define rtCallableProgram optix::boundCallableProgramId
@@ -388,7 +389,7 @@ template<> struct rtCallableProgramSizeofWrapper<void> { static const size_t val
 
 namespace optix {
   template<typename T, int Dim> struct bufferId;
-  
+
   template<typename T, int Dim = 1> struct buffer {
     typedef VectorTypes<size_t, Dim> WrapperType;
     typedef typename VectorTypes<size_t, Dim>::Type IndexType;
@@ -416,7 +417,7 @@ namespace optix {
     // bufferId type.  Read the ID from the buffer than assign it to a new bufferId to be
     // used later.
     template<typename T2, int Dim2>
-    __device__ __forceinline__ static void* create(type<bufferId<T2,Dim2> >, void* v) 
+    __device__ __forceinline__ static void* create(type<bufferId<T2,Dim2> >, void* v)
     {
       // Returning a pointer to a locally created thing is generally a bad idea,
       // however since this function and its caller are always inlined the
@@ -428,18 +429,38 @@ namespace optix {
     }
   };
 
+  template<typename T, int Dim = 1> struct demandloadbuffer {
+    typedef VectorTypes<size_t, Dim> WrapperType;
+    typedef typename VectorTypes<size_t, Dim>::Type IndexType;
+
+    __device__ __forceinline__ bool loadOrRequest( IndexType i, T& value ) {
+      size_t4 c = make_index(i);
+      return rt_load_or_request( this, Dim, sizeof(T), c.x, c.y, c.z, c.w, &value );
+    }
+
+    __device__ __forceinline__ IndexType size() const {
+      return WrapperType::make(rt_buffer_get_size(this, Dim, sizeof(T)));
+    }
+
+  protected:
+    __inline__ __device__ static size_t4 make_index(size_t v0) { return make_size_t4(v0, 0, 0, 0); }
+    __inline__ __device__ static size_t4 make_index(size_t2 v0) { return make_size_t4(v0.x, v0.y, 0, 0); }
+    __inline__ __device__ static size_t4 make_index(size_t3 v0) { return make_size_t4(v0.x, v0.y, v0.z, 0); }
+    __inline__ __device__ static size_t4 make_index(size_t4 v0) { return make_size_t4(v0.x, v0.y, v0.z, v0.w); }
+  };
+
   // Helper class for encapsulating a buffer ID with methods to allow it to behave as a buffer.
   template<typename T, int Dim = 1> struct bufferId : public buffer<T,Dim> {
     typedef typename buffer<T,Dim>::WrapperType WrapperType;
     typedef typename buffer<T,Dim>::IndexType IndexType;
-    
+
     // Default constructor
     __device__ __forceinline__ bufferId() {}
     // Constructor that initializes the id with null.
     __device__ __forceinline__ bufferId(RTbufferidnull nullid) { m_id = (int)nullid; }
     // Constructor that initializes the id.
     __device__ __forceinline__ explicit bufferId(int id) : m_id(id) {}
-      
+
     // assignment that initializes the id with null.
     __device__ __forceinline__ bufferId& operator= (RTbufferidnull nullid) { m_id = nullid; return *this; }
 
@@ -457,7 +478,7 @@ namespace optix {
     __device__ __forceinline__ int getId() const { return m_id; }
 
     __device__ __forceinline__ operator bool() const { return m_id; }
- 
+
   private:
     // Member variable
     int m_id;
@@ -497,9 +518,9 @@ namespace optix {
   * @ref rtDeclareAnnotation macro.
   *
   * <B>History</B>
-  * 
+  *
   * @ref rtBuffer was introduced in OptiX 1.0.
-  * 
+  *
   * <B>See also</B>
   * @ref rtDeclareAnnotation,
   * @ref rtDeclareVariable,
@@ -507,9 +528,12 @@ namespace optix {
   * @ref rtTextureSampler,
   * @ref rtVariableSetObject
   * @ref rtBufferId
-  * 
+  *
   */
 #define rtBuffer       __device__ optix::buffer
+
+#define rtDemandLoadBuffer __device__ optix::demandloadbuffer
+
 /**
   * @brief A class that wraps buffer access functionality when using a buffer id.
   *
@@ -561,16 +585,16 @@ namespace optix {
   * @ref rtTextureSamplerCreate.
   *
   * An annotation may be associated with the texture sampler variable by
-  * using the @ref rtDeclareAnnotation macro.  
+  * using the @ref rtDeclareAnnotation macro.
   *
   * <B>History</B>
-  * 
+  *
   * @ref rtTextureSampler was introduced in OptiX 1.0.
-  * 
+  *
   * <B>See also</B>
   * @ref rtDeclareAnnotation,
   * @ref rtTextureSamplerCreate
-  * 
+  *
   */
 #define rtTextureSampler texture
 
@@ -698,17 +722,17 @@ namespace optix {
   {                                                           \
     int4 tmp = FUNC <int4> PARAMS;                            \
     return make_short4(tmp.x, tmp.y, tmp.z, tmp.w);           \
-  }   
+  }
 
   inline __device__ int4 float4AsInt4( float4 f4 ) {
     return make_int4(__float_as_int(f4.x), __float_as_int(f4.y), __float_as_int(f4.z), __float_as_int(f4.w));
   }
-    
+
   inline __device__ uint4 float4AsUInt4( float4 f4 ) {
     return make_uint4(__float_as_int(f4.x), __float_as_int(f4.y), __float_as_int(f4.z), __float_as_int(f4.w));
   }
 
-  /** 
+  /**
     * @brief Similar to CUDA C's texture functions, OptiX programs can access textures in a bindless way
     *
     * @ingroup rtTex
@@ -716,11 +740,11 @@ namespace optix {
     * <B>Description</B>
     *
     * \b rtTex1D, \b rtTex2D and \b rtTex3D fetch the texture referenced by the \a id with
-    * texture coordinate \a x, \a y and \a z. The texture sampler \a id can be obtained on the host 
+    * texture coordinate \a x, \a y and \a z. The texture sampler \a id can be obtained on the host
     * side using @ref rtTextureSamplerGetId function.
-    * There are also C++ template and C-style additional declarations for other 
+    * There are also C++ template and C-style additional declarations for other
     * texture types (char1, uchar1, char2, uchar2 ...):
-    * 
+    *
     * To get texture size dimensions \b rtTexSize can be used. In the case of compressed textures,
     * the size reflects the full view size, rather than the compressed data size.
     *
@@ -729,8 +753,8 @@ namespace optix {
     *
     * Textures may also be sampled by providing a level of detail for mip mapping or
     * gradients for anisotropic filtering. An integer layer number is required for layered textures (arrays of textures)
-    * using functions:  
-    * \b rtTex2DGather, \b rtTex1DGrad, \b rtTex2DGrad, \b rtTex3DGrad, \b rtTex1DLayeredGrad, \b rtTex2DLayeredGrad, 
+    * using functions:
+    * \b rtTex2DGather, \b rtTex1DGrad, \b rtTex2DGrad, \b rtTex3DGrad, \b rtTex1DLayeredGrad, \b rtTex2DLayeredGrad,
     * \b rtTex1DLod, \b rtTex2DLod, \b rtTex3DLod, \b rtTex1DLayeredLod, \b rtTex2DLayeredLod, \b rtTex1DLayered, \b rtTex2DLayered.
     *
     * And cubeamp textures with \b rtTexCubemap, \b rtTexCubemapLod, \b rtTexCubemapLayered and \b rtTexCubemapLayeredLod.
@@ -742,18 +766,18 @@ namespace optix {
     *
     *
     * <B>History</B>
-    * 
+    *
     * \b rtTex1D, \b rtTex2D and \b rtTex3D were introduced in OptiX 3.0.
     *
     * \b rtTexSize, \b rtTex1DFetch, \b rtTex2DFetch, \b rtTex3DFetch,
-    * \b rtTex2DGather, \b rtTex1DGrad, \b rtTex2DGrad, \b rtTex3DGrad, \b rtTex1DLayeredGrad, \b rtTex2DLayeredGrad, 
+    * \b rtTex2DGather, \b rtTex1DGrad, \b rtTex2DGrad, \b rtTex3DGrad, \b rtTex1DLayeredGrad, \b rtTex2DLayeredGrad,
     * \b rtTex1DLod, \b rtTex2DLod, \b rtTex3DLod, \b rtTex1DLayeredLod, \b rtTex2DLayeredLod, \b rtTex1DLayered, \b rtTex2DLayered,
     * \b rtTexCubemap, \b rtTexCubemapLod, \b rtTexCubemapLayered and \b rtTexCubemapLayeredLod
     * were introduced in OptiX 3.9.
-    * 
+    *
     * <B>See also</B>
     * @ref rtTextureSamplerGetId
-    * 
+    *
     */
   /** @{ */
 
@@ -777,7 +801,7 @@ namespace optix {
     return optix::rt_texture_get_u_id(id, 1, x, 0, 0, 0);
   }
   _OPTIX_TEX_FUNC_DECLARE_(rtTex1D, (rtTextureId id, float x), (id, x) )
-  template<typename T> 
+  template<typename T>
   inline __device__ void rtTex1D(T* retVal, rtTextureId id, float x)
   {
     T tmp = rtTex1D<T>(id, x);
@@ -799,7 +823,7 @@ namespace optix {
     return float4AsUInt4(optix::rt_texture_get_fetch_id(id, 1, x, 0, 0, 0));
   }
   _OPTIX_TEX_FUNC_DECLARE_(rtTex1DFetch, (rtTextureId id, int x), (id, x) )
-  template<typename T> 
+  template<typename T>
   inline __device__ void rtTex1DFetch(T* retVal, rtTextureId id, int x)
   {
     T tmp = rtTex1DFetch<T>(id, x);
@@ -824,13 +848,13 @@ namespace optix {
     return optix::rt_texture_get_u_id(id, 2, x, y, 0, 0);
   }
   _OPTIX_TEX_FUNC_DECLARE_(rtTex2D, (rtTextureId id, float x, float y), (id, x, y) )
-  template<typename T> 
+  template<typename T>
   inline __device__ void rtTex2D(T* retVal, rtTextureId id, float x, float y)
   {
     T tmp = rtTex2D<T>(id, x, y);
     *retVal = tmp;
   }
-  
+
   template<typename T>
   inline __device__ T rtTex2DFetch(rtTextureId id, int x, int y);
   template<> inline __device__ float4 rtTex2DFetch(rtTextureId id, int x, int y)
@@ -846,13 +870,13 @@ namespace optix {
     return float4AsUInt4(optix::rt_texture_get_fetch_id(id, 2, x, y, 0, 0));
   }
   _OPTIX_TEX_FUNC_DECLARE_(rtTex2DFetch, (rtTextureId id, int x, int y), (id, x, y) )
-  template<typename T> 
+  template<typename T>
   inline __device__ void rtTex2DFetch(T* retVal, rtTextureId id, int x, int y)
   {
     T tmp = rtTex2DFetch<T>(id, x, y);
     *retVal = tmp;
   }
-  
+
   template<typename T>
   inline __device__ T rtTex3D(rtTextureId id, float x, float y, float z);
   template<> inline __device__ float4 rtTex3D(rtTextureId id, float x, float y, float z)
@@ -868,7 +892,7 @@ namespace optix {
     return optix::rt_texture_get_u_id(id, 3, x, y, z, 0);
   }
   _OPTIX_TEX_FUNC_DECLARE_(rtTex3D, (rtTextureId id, float x, float y, float z), (id, x, y, z) )
-  template<typename T> 
+  template<typename T>
   inline __device__ void rtTex3D(T* retVal, rtTextureId id, float x, float y, float z)
   {
     T tmp = rtTex3D<T>(id, x, y, z);
@@ -888,9 +912,9 @@ namespace optix {
   template<> inline __device__ uint4 rtTex3DFetch(rtTextureId id, int x, int y, int z)
   {
     return float4AsUInt4(optix::rt_texture_get_fetch_id(id, 3, x, y, z, 0));
-  }    
+  }
   _OPTIX_TEX_FUNC_DECLARE_(rtTex3DFetch, (rtTextureId id, int x, int y, int z), (id, x, y, z) )
-  template<typename T> 
+  template<typename T>
   inline __device__ void rtTex3DFetch(T* retVal, rtTextureId id, int x, int y, int z)
   {
     T tmp = rtTex3DFetch<T>(id, x, y, z);
@@ -912,7 +936,7 @@ namespace optix {
     return float4AsUInt4(optix::rt_texture_get_gather_id(id, x, y, comp));
   }
   _OPTIX_TEX_FUNC_DECLARE_(rtTex2DGather, (rtTextureId id, float x, float y, int comp), (id, x, y, comp) )
-  template<typename T> 
+  template<typename T>
   inline __device__ void rtTex2DGather(T* retVal, rtTextureId id, float x, float y, int comp = 0)
   {
     T tmp = rtTex2DGather<T>(id, x, y, comp);
@@ -934,7 +958,7 @@ namespace optix {
     return float4AsUInt4(optix::rt_texture_get_grad_id(id, TEX_LOOKUP_1D, x, 0, 0, 0, dPdx, 0, 0, dPdy, 0, 0));
   }
   _OPTIX_TEX_FUNC_DECLARE_(rtTex1DGrad, (rtTextureId id, float x, float dPdx, float dPdy), (id, x, dPdx, dPdy) )
-  template<typename T> 
+  template<typename T>
   inline __device__ void rtTex1DGrad(T* retVal, rtTextureId id, float x, float dPdx, float dPdy)
   {
     T tmp = rtTex1DGrad<T>(id, x, dPdx, dPdy);
@@ -956,7 +980,7 @@ namespace optix {
     return float4AsUInt4(optix::rt_texture_get_grad_id(id, TEX_LOOKUP_2D, x, y, 0, 0, dPdx.x, dPdx.y, 0, dPdy.x, dPdy.y, 0));
   }
   _OPTIX_TEX_FUNC_DECLARE_(rtTex2DGrad, (rtTextureId id, float x, float y, float2 dPdx, float2 dPdy), (id, x, y, dPdx, dPdy) )
-  template<typename T> 
+  template<typename T>
   inline __device__ void rtTex2DGrad(T* retVal, rtTextureId id, float x, float y, float2 dPdx, float2 dPdy)
   {
     T tmp = rtTex2DGrad<T>(id, x, y, dPdx, dPdy);
@@ -978,7 +1002,7 @@ namespace optix {
     return float4AsUInt4(optix::rt_texture_get_grad_id(id, TEX_LOOKUP_3D, x, y, z, 0, dPdx.x, dPdx.y, dPdx.z, dPdy.x, dPdy.y, dPdy.z));
   }
   _OPTIX_TEX_FUNC_DECLARE_(rtTex3DGrad, (rtTextureId id, float x, float y, float z, float4 dPdx, float4 dPdy), (id, x, y, z, dPdx, dPdy) )
-  template<typename T> 
+  template<typename T>
   inline __device__ void rtTex3DGrad(T* retVal, rtTextureId id, float x, float y, float z, float4 dPdx, float4 dPdy)
   {
     T tmp = rtTex3DGrad<T>(id, x, y, z, dPdx, dPdy);
@@ -1000,7 +1024,7 @@ namespace optix {
     return float4AsUInt4(optix::rt_texture_get_grad_id(id, TEX_LOOKUP_A1, x, 0, 0, layer, dPdx, 0, 0, dPdy, 0, 0));
   }
   _OPTIX_TEX_FUNC_DECLARE_(rtTex1DLayeredGrad, (rtTextureId id, float x, int layer, float dPdx, float dPdy), (id, x, layer, dPdx, dPdy) )
-  template<typename T> 
+  template<typename T>
   inline __device__ void rtTex1DLayeredGrad(T* retVal, rtTextureId id, float x, int layer, float dPdx, float dPdy)
   {
     T tmp = rtTex1DLayeredGrad<T>(id, x, layer, dPdx, dPdy);
@@ -1022,13 +1046,13 @@ namespace optix {
     return float4AsUInt4(optix::rt_texture_get_grad_id(id, TEX_LOOKUP_A2, x, y, 0, layer, dPdx.x, dPdx.y, 0, dPdy.x, dPdy.y, 0));
   }
   _OPTIX_TEX_FUNC_DECLARE_(rtTex2DLayeredGrad, (rtTextureId id, float x, float y, int layer, float2 dPdx, float2 dPdy), (id, x, y, layer, dPdx, dPdy) )
-  template<typename T> 
+  template<typename T>
   inline __device__ void rtTex2DLayeredGrad(T* retVal, rtTextureId id, float x, float y, int layer, float2 dPdx, float2 dPdy)
   {
     T tmp = rtTex2DLayeredGrad<T>(id, x, y, layer, dPdx, dPdy);
     *retVal = tmp;
   }
- 
+
   template<typename T>
   inline __device__ T rtTex1DLod(rtTextureId id, float x, float level);
   template<> inline __device__ float4 rtTex1DLod(rtTextureId id, float x, float level)
@@ -1044,7 +1068,7 @@ namespace optix {
     return float4AsUInt4(optix::rt_texture_get_level_id(id, TEX_LOOKUP_1D, x, 0, 0, 0, level ));
   }
   _OPTIX_TEX_FUNC_DECLARE_(rtTex1DLod, (rtTextureId id, float x, float level), (id, x, level) )
-  template<typename T> 
+  template<typename T>
   inline __device__ void rtTex1DLod(T* retVal, rtTextureId id, float x, float level)
   {
     T tmp = rtTex1DLod<T>(id, x, level);
@@ -1066,7 +1090,7 @@ namespace optix {
     return float4AsUInt4(optix::rt_texture_get_level_id(id, TEX_LOOKUP_2D, x, y, 0, 0, level ));
   }
   _OPTIX_TEX_FUNC_DECLARE_(rtTex2DLod, (rtTextureId id, float x, float y, float level), (id, x, y, level) )
-  template<typename T> 
+  template<typename T>
   inline __device__ void rtTex2DLod(T* retVal, rtTextureId id, float x, float y, float level)
   {
     T tmp = rtTex2DLod<T>(id, x, y, level);
@@ -1088,7 +1112,7 @@ namespace optix {
     return float4AsUInt4(optix::rt_texture_get_level_id(id, TEX_LOOKUP_3D, x, y, z, 0, level ));
   }
   _OPTIX_TEX_FUNC_DECLARE_(rtTex3DLod, (rtTextureId id, float x, float y, float z, float level), (id, x, y, z, level) )
-  template<typename T> 
+  template<typename T>
   inline __device__ void rtTex3DLod(T* retVal, rtTextureId id, float x, float y, float z, float level)
   {
     T tmp = rtTex3DLod<T>(id, x, y, z, level);
@@ -1110,7 +1134,7 @@ namespace optix {
     return float4AsUInt4(optix::rt_texture_get_level_id(id, TEX_LOOKUP_A1, x, 0, 0, layer, level ));
   }
   _OPTIX_TEX_FUNC_DECLARE_(rtTex1DLayeredLod, (rtTextureId id, float x, int layer, float level), (id, x, layer, level) )
-  template<typename T> 
+  template<typename T>
   inline __device__ void rtTex1DLayeredLod(T* retVal, rtTextureId id, float x, int layer, float level)
   {
     T tmp = rtTex1DLayeredLod<T>(id, x, layer, level);
@@ -1132,7 +1156,7 @@ namespace optix {
     return float4AsUInt4(optix::rt_texture_get_level_id(id, TEX_LOOKUP_A2, x, y, 0, layer, level ));
   }
   _OPTIX_TEX_FUNC_DECLARE_(rtTex2DLayeredLod, (rtTextureId id, float x, float y, int layer, float level), (id, x, y, layer, level) )
-  template<typename T> 
+  template<typename T>
   inline __device__ void rtTex2DLayeredLod(T* retVal, rtTextureId id, float x, float y, int layer, float level)
   {
     T tmp = rtTex2DLayeredLod<T>(id, x, y, layer, level);
@@ -1154,7 +1178,7 @@ namespace optix {
     return float4AsUInt4(optix::rt_texture_get_base_id(id, TEX_LOOKUP_A1, x, 0, 0, layer ));
   }
   _OPTIX_TEX_FUNC_DECLARE_(rtTex1DLayered, (rtTextureId id, float x, int layer), (id, x, layer) )
-  template<typename T> 
+  template<typename T>
   inline __device__ void rtTex1DLayered(T* retVal, rtTextureId id, float x, int layer)
   {
     T tmp = rtTex1DLayered<T>(id, x, layer);
@@ -1176,13 +1200,13 @@ namespace optix {
     return float4AsUInt4(optix::rt_texture_get_base_id(id, TEX_LOOKUP_A2, x, y, 0, layer ));
   }
   _OPTIX_TEX_FUNC_DECLARE_(rtTex2DLayered, (rtTextureId id, float x, float y, int layer), (id, x, y, layer) )
-  template<typename T> 
+  template<typename T>
   inline __device__ void rtTex2DLayered(T* retVal, rtTextureId id, float x, float y, int layer)
   {
     T tmp = rtTex2DLayered<T>(id, x, y, layer);
     *retVal = tmp;
   }
-   
+
   template<typename T>
   inline __device__ T rtTexCubemap(rtTextureId id, float x, float y, float z);
   template<> inline __device__ float4 rtTexCubemap(rtTextureId id, float x, float y, float z)
@@ -1198,13 +1222,13 @@ namespace optix {
     return float4AsUInt4(optix::rt_texture_get_base_id(id, TEX_LOOKUP_CUBE, x, y, z, 0 ));
   }
   _OPTIX_TEX_FUNC_DECLARE_(rtTexCubemap, (rtTextureId id, float x, float y, float z), (id, x, y, z) )
-  template<typename T> 
+  template<typename T>
   inline __device__ void rtTexCubemap(T* retVal, rtTextureId id, float x, float y, float z)
   {
     T tmp = rtTexCubemap<T>(id, x, y, z);
     *retVal = tmp;
   }
-    
+
   template<typename T>
   inline __device__ T rtTexCubemapLayered(rtTextureId id, float x, float y, float z, int layer);
   template<> inline __device__ float4 rtTexCubemapLayered(rtTextureId id, float x, float y, float z, int layer)
@@ -1220,13 +1244,13 @@ namespace optix {
     return float4AsUInt4(optix::rt_texture_get_base_id(id, TEX_LOOKUP_ACUBE, x, y, z, layer ));
   }
   _OPTIX_TEX_FUNC_DECLARE_(rtTexCubemapLayered, (rtTextureId id, float x, float y, float z, int layer), (id, x, y, z, layer) )
-  template<typename T> 
+  template<typename T>
   inline __device__ void rtTexCubemapLayered(T* retVal, rtTextureId id, float x, float y, float z, int layer)
   {
     T tmp = rtTexCubemapLayered<T>(id, x, y, z, layer);
     *retVal = tmp;
   }
-    
+
   template<typename T>
   inline __device__ T rtTexCubemapLod(rtTextureId id, float x, float y, float z, float level);
   template<> inline __device__ float4 rtTexCubemapLod(rtTextureId id, float x, float y, float z, float level)
@@ -1242,7 +1266,7 @@ namespace optix {
     return float4AsUInt4(optix::rt_texture_get_level_id(id, TEX_LOOKUP_CUBE, x, y, z, 0, level ));
   }
   _OPTIX_TEX_FUNC_DECLARE_(rtTexCubemapLod, (rtTextureId id, float x, float y, float z, float level), (id, x, y, z, level) )
-  template<typename T> 
+  template<typename T>
   inline __device__ void rtTexCubemapLod(T* retVal, rtTextureId id, float x, float y, float z, float level)
   {
     T tmp = rtTexCubemapLod<T>(id, x, y, z, level);
@@ -1264,11 +1288,289 @@ namespace optix {
     return float4AsUInt4(optix::rt_texture_get_level_id(id, TEX_LOOKUP_ACUBE, x, y, z, layer, level ));
   }
   _OPTIX_TEX_FUNC_DECLARE_(rtTexCubemapLayeredLod, (rtTextureId id, float x, float y, float z, int layer, float level), (id, x, y, z, layer, level) )
-  template<typename T> 
+  template<typename T>
   inline __device__ void rtTexCubemapLayeredLod(T* retVal, rtTextureId id, float x, float y, float z, int layer, float level)
   {
     T tmp = rtTexCubemapLayeredLod<T>(id, x, y, z, layer, level);
     *retVal = tmp;
+  }
+
+  // Demand textures
+
+  template <typename T>
+  inline __device__ T rtTex1DLoadOrRequest( rtTextureId id, float x, bool& isResident );
+
+  template <>
+  inline __device__ float4 rtTex1DLoadOrRequest( rtTextureId id, float x, bool& isResident )
+  {
+      return optix::rt_texture_load_or_request_f_id( id, 1, x, 0.f, 0.f, 0.f, &isResident );
+  }
+
+  template <>
+  inline __device__ uint4 rtTex1DLoadOrRequest( rtTextureId id, float x, bool& isResident )
+  {
+      return optix::rt_texture_load_or_request_u_id( id, 1, x, 0.f, 0.f, 0.f, &isResident );
+  }
+
+  template <>
+  inline __device__ int4 rtTex1DLoadOrRequest( rtTextureId id, float x, bool& isResident )
+  {
+      return optix::rt_texture_load_or_request_i_id( id, 1, x, 0.f, 0.f, 0.f, &isResident );
+  }
+
+  _OPTIX_TEX_FUNC_DECLARE_( rtTex1DLoadOrRequest, ( rtTextureId id, float x, bool& isResident ), ( id, x, isResident ) )
+  template <typename T>
+  inline __device__ void rtTex1DLoadOrRequest( T* retVal, rtTextureId id, float x, bool& isResident )
+  {
+      T tmp   = rtTex1DLoadOrRequest<T>( id, x, isResident );
+      *retVal = tmp;
+  }
+
+  template <typename T>
+  inline __device__ T rtTex2DLoadOrRequest( rtTextureId id, float x, float y, bool& isResident );
+
+  template <>
+  inline __device__ float4 rtTex2DLoadOrRequest( rtTextureId id, float x, float y, bool& isResident )
+  {
+      return optix::rt_texture_load_or_request_f_id( id, 2, x, y, 0.f, 0.f, &isResident );
+  }
+
+  template <>
+  inline __device__ uint4 rtTex2DLoadOrRequest( rtTextureId id, float x, float y, bool& isResident )
+  {
+      return optix::rt_texture_load_or_request_u_id( id, 2, x, y, 0.f, 0.f, &isResident );
+  }
+
+  template <>
+  inline __device__ int4 rtTex2DLoadOrRequest( rtTextureId id, float x, float y, bool& isResident )
+  {
+      return optix::rt_texture_load_or_request_i_id( id, 2, x, y, 0.f, 0.f, &isResident );
+  }
+
+  _OPTIX_TEX_FUNC_DECLARE_( rtTex2DLoadOrRequest, ( rtTextureId id, float x, float y, bool& isResident ), ( id, x, y, isResident ) )
+  template <typename T>
+  inline __device__ void rtTex2DLoadOrRequest( T* retVal, rtTextureId id, float x, float y, bool& isResident )
+  {
+      T tmp   = rtTex2DLoadOrRequest<T>( id, x, y, isResident );
+      *retVal = tmp;
+  }
+
+  template <typename T>
+  inline __device__ T rtTex3DLoadOrRequest( rtTextureId id, float x, float y, float z, bool& isResident );
+
+  template <>
+  inline __device__ float4 rtTex3DLoadOrRequest( rtTextureId id, float x, float y, float z, bool& isResident )
+  {
+      return optix::rt_texture_load_or_request_f_id( id, 2, x, y, z, 0.f, &isResident );
+  }
+
+  template <>
+  inline __device__ uint4 rtTex3DLoadOrRequest( rtTextureId id, float x, float y, float z, bool& isResident )
+  {
+      return optix::rt_texture_load_or_request_u_id( id, 2, x, y, z, 0.f, &isResident );
+  }
+
+  template <>
+  inline __device__ int4 rtTex3DLoadOrRequest( rtTextureId id, float x, float y, float z, bool& isResident )
+  {
+      return optix::rt_texture_load_or_request_i_id( id, 2, x, y, z, 0.f, &isResident );
+  }
+
+  _OPTIX_TEX_FUNC_DECLARE_( rtTex3DLoadOrRequest,
+                            ( rtTextureId id, float x, float y, float z, bool& isResident ),
+                            ( id, x, y, z, isResident ) )
+  template <typename T>
+  inline __device__ void rtTex3DLoadOrRequest( T* retVal, rtTextureId id, float x, float y, float z, bool& isResident )
+  {
+      T tmp   = rtTex3DLoadOrRequest<T>( id, x, y, z, isResident );
+      *retVal = tmp;
+  }
+
+  template <typename T>
+  inline __device__ T rtTex1DLodLoadOrRequest( rtTextureId id, float x, float level, bool& isResident );
+
+  template <>
+  inline __device__ float4 rtTex1DLodLoadOrRequest( rtTextureId id, float x, float level, bool& isResident )
+  {
+      return optix::rt_texture_lod_load_or_request_f_id( id, 1, x, 0.f, 0.f, 0.f, level, &isResident );
+  }
+
+  template <>
+  inline __device__ uint4 rtTex1DLodLoadOrRequest( rtTextureId id, float x, float level, bool& isResident )
+  {
+      return optix::rt_texture_lod_load_or_request_u_id( id, 1, x, 0.f, 0.f, 0.f, level, &isResident );
+  }
+
+  template <>
+  inline __device__ int4 rtTex1DLodLoadOrRequest( rtTextureId id, float x, float level, bool& isResident )
+  {
+      return optix::rt_texture_lod_load_or_request_i_id( id, 1, x, 0.f, 0.f, 0.f, level, &isResident );
+  }
+
+  _OPTIX_TEX_FUNC_DECLARE_( rtTex1DLodLoadOrRequest, ( rtTextureId id, float x, float level, bool& isResident ), ( id, x, level, isResident ) )
+  template <typename T>
+  inline __device__ void rtTex1DLodLoadOrRequest( T* retVal, rtTextureId id, float x, float level, bool& isResident )
+  {
+      T tmp   = rtTex1DLodLoadOrRequest<T>( id, x, level, isResident );
+      *retVal = tmp;
+  }
+
+  template <typename T>
+  inline __device__ T rtTex2DLodLoadOrRequest( rtTextureId id, float x, float y, float level, bool& isResident );
+
+  template <>
+  inline __device__ float4 rtTex2DLodLoadOrRequest( rtTextureId id, float x, float y, float level, bool& isResident )
+  {
+      return optix::rt_texture_lod_load_or_request_f_id( id, 2, x, y, 0.f, 0.f, level, &isResident );
+  }
+
+  template <>
+  inline __device__ uint4 rtTex2DLodLoadOrRequest( rtTextureId id, float x, float y, float level, bool& isResident )
+  {
+      return optix::rt_texture_lod_load_or_request_u_id( id, 2, x, y, 0.f, 0.f, level, &isResident );
+  }
+
+  template <>
+  inline __device__ int4 rtTex2DLodLoadOrRequest( rtTextureId id, float x, float y, float level, bool& isResident )
+  {
+      return optix::rt_texture_lod_load_or_request_i_id( id, 2, x, y, 0.f, 0.f, level, &isResident );
+  }
+
+  _OPTIX_TEX_FUNC_DECLARE_( rtTex2DLodLoadOrRequest,
+                            ( rtTextureId id, float x, float y, float level, bool& isResident ),
+                            ( id, x, y, level, isResident ) )
+  template <typename T>
+  inline __device__ void rtTex2DLodLoadOrRequest( T* retVal, rtTextureId id, float x, float y, float level, bool& isResident )
+  {
+      T tmp   = rtTex2DLodLoadOrRequest<T>( id, x, y, level, isResident );
+      *retVal = tmp;
+  }
+
+  template <typename T>
+  inline __device__ T rtTex3DLodLoadOrRequest( rtTextureId id, float x, float y, float z, float level, bool& isResident );
+
+  template <>
+  inline __device__ float4 rtTex3DLodLoadOrRequest( rtTextureId id, float x, float y, float z, float level, bool& isResident )
+  {
+      return optix::rt_texture_lod_load_or_request_f_id( id, 2, x, y, z, 0.f, level, &isResident );
+  }
+
+  template <>
+  inline __device__ uint4 rtTex3DLodLoadOrRequest( rtTextureId id, float x, float y, float z, float level, bool& isResident )
+  {
+      return optix::rt_texture_lod_load_or_request_u_id( id, 2, x, y, z, 0.f, level, &isResident );
+  }
+
+  template <>
+  inline __device__ int4 rtTex3DLodLoadOrRequest( rtTextureId id, float x, float y, float z, float level, bool& isResident )
+  {
+      return optix::rt_texture_lod_load_or_request_i_id( id, 2, x, y, z, 0.f, level, &isResident );
+  }
+
+  _OPTIX_TEX_FUNC_DECLARE_( rtTex3DLodLoadOrRequest,
+                            ( rtTextureId id, float x, float y, float z, float level, bool& isResident ),
+                            ( id, x, y, z, level, isResident ) )
+  template <typename T>
+  inline __device__ void rtTex3DLodLoadOrRequest( T* retVal, rtTextureId id, float x, float y, float z, float level, bool& isResident )
+  {
+      T tmp   = rtTex3DLodLoadOrRequest<T>( id, x, y, z, level, isResident );
+      *retVal = tmp;
+  }
+
+  template <typename T>
+  inline __device__ T rtTex1DGradLoadOrRequest( rtTextureId id, float x, float dPdx, float dPdy, bool& isResident );
+
+  template <>
+  inline __device__ float4 rtTex1DGradLoadOrRequest( rtTextureId id, float x, float dPdx, float dPdy, bool& isResident )
+  {
+      return optix::rt_texture_grad_load_or_request_f_id( id, 1, x, 0.f, 0.f, 0.f, dPdx, 0.f, 0.f, dPdy, 0.f, 0.f, &isResident );
+  }
+
+  template <>
+  inline __device__ uint4 rtTex1DGradLoadOrRequest( rtTextureId id, float x, float dPdx, float dPdy, bool& isResident )
+  {
+      return optix::rt_texture_grad_load_or_request_u_id( id, 1, x, 0.f, 0.f, 0.f, dPdx, 0.f, 0.f, dPdy, 0.f, 0.f, &isResident );
+  }
+
+  template <>
+  inline __device__ int4 rtTex1DGradLoadOrRequest( rtTextureId id, float x, float dPdx, float dPdy, bool& isResident )
+  {
+      return optix::rt_texture_grad_load_or_request_i_id( id, 1, x, 0.f, 0.f, 0.f, dPdx, 0.f, 0.f, dPdy, 0.f, 0.f, &isResident );
+  }
+
+  _OPTIX_TEX_FUNC_DECLARE_( rtTex1DGradLoadOrRequest,
+                            ( rtTextureId id, float x, float dPdx, float dPdy, bool& isResident ),
+                            ( id, x, dPdx, dPdy, isResident ) )
+  template <typename T>
+  inline __device__ void rtTex1DGradLoadOrRequest( T* retVal, rtTextureId id, float x, float dPdx, float dPdy, bool& isResident )
+  {
+      T tmp   = rtTex1DGradLoadOrRequest<T>( id, x, dPdx, dPdy, isResident );
+      *retVal = tmp;
+  }
+
+  template <typename T>
+  inline __device__ T rtTex2DGradLoadOrRequest( rtTextureId id, float x, float y, float2 dPdx, float2 dPdy, bool& isResident );
+
+  template <>
+  inline __device__ float4 rtTex2DGradLoadOrRequest( rtTextureId id, float x, float y, float2 dPdx, float2 dPdy, bool& isResident )
+  {
+      return optix::rt_texture_grad_load_or_request_f_id( id, 2, x, y, 0.f, 0.f, dPdx.x, dPdx.y, 0.f, dPdy.x, dPdy.y, 0.f, &isResident );
+  }
+
+  template <>
+  inline __device__ uint4 rtTex2DGradLoadOrRequest( rtTextureId id, float x, float y, float2 dPdx, float2 dPdy, bool& isResident )
+  {
+      return optix::rt_texture_grad_load_or_request_u_id( id, 2, x, y, 0.f, 0.f, dPdx.x, dPdx.y, 0.f, dPdy.x, dPdy.y, 0.f, &isResident );
+  }
+
+  template <>
+  inline __device__ int4 rtTex2DGradLoadOrRequest( rtTextureId id, float x, float y, float2 dPdx, float2 dPdy, bool& isResident )
+  {
+      return optix::rt_texture_grad_load_or_request_i_id( id, 2, x, y, 0.f, 0.f, dPdx.x, dPdx.y, 0.f, dPdy.x, dPdy.y, 0.f, &isResident );
+  }
+
+  _OPTIX_TEX_FUNC_DECLARE_( rtTex2DGradLoadOrRequest,
+                            ( rtTextureId id, float x, float y, float2 dPdx, float2 dPdy, bool& isResident ),
+                            ( id, x, y, dPdx, dPdy, isResident ) )
+  template <typename T>
+  inline __device__ void rtTex2DGradLoadOrRequest( T* retVal, rtTextureId id, float x, float y, float2 dPdx, float2 dPdy, bool& isResident )
+  {
+      T tmp   = rtTex2DGradLoadOrRequest<T>( id, x, y, dPdx, dPdy, isResident );
+      *retVal = tmp;
+  }
+
+  template <typename T>
+  inline __device__ T rtTex3DGradLoadOrRequest( rtTextureId id, float x, float y, float z, float4 dPdx, float4 dPdy, bool& isResident );
+
+  template <>
+  inline __device__ float4 rtTex3DGradLoadOrRequest( rtTextureId id, float x, float y, float z, float4 dPdx, float4 dPdy, bool& isResident )
+  {
+      return optix::rt_texture_grad_load_or_request_f_id( id, 3, x, y, z, 0.f, dPdx.x, dPdx.y, dPdx.z, dPdy.x, dPdy.y,
+                                                          dPdy.z, &isResident );
+  }
+
+  template <>
+  inline __device__ uint4 rtTex3DGradLoadOrRequest( rtTextureId id, float x, float y, float z, float4 dPdx, float4 dPdy, bool& isResident )
+  {
+      return optix::rt_texture_grad_load_or_request_u_id( id, 3, x, y, z, 0.f, dPdx.x, dPdx.y, dPdx.z, dPdy.x, dPdy.y,
+                                                          dPdy.z, &isResident );
+  }
+
+  template <>
+  inline __device__ int4 rtTex3DGradLoadOrRequest( rtTextureId id, float x, float y, float z, float4 dPdx, float4 dPdy, bool& isResident )
+  {
+      return optix::rt_texture_grad_load_or_request_i_id( id, 3, x, y, z, 0.f, dPdx.x, dPdx.y, dPdx.z, dPdy.x, dPdy.y,
+                                                          dPdy.z, &isResident );
+  }
+
+  _OPTIX_TEX_FUNC_DECLARE_( rtTex3DGradLoadOrRequest,
+                            ( rtTextureId id, float x, float y, float z, float4 dPdx, float4 dPdy, bool& isResident ),
+                            ( id, x, y, z, dPdx, dPdy, isResident ) )
+  template <typename T>
+  inline __device__ void rtTex3DGradLoadOrRequest( T* retVal, rtTextureId id, float x, float y, float z, float4 dPdx, float4 dPdy, bool& isResident )
+  {
+      T tmp   = rtTex3DGradLoadOrRequest<T>( id, x, y, z, dPdx, dPdy, isResident );
+      *retVal = tmp;
   }
 
   /** @} */
@@ -1282,11 +1584,11 @@ namespace optix {
 
 /**
   * @brief Define an OptiX program
-  * 
+  *
   * @ingroup CUDACDeclarations
-  * 
+  *
   * <B>Description</B>
-  * 
+  *
   * @ref RT_PROGRAM defines a program \b program_name with the specified
   * arguments and return value. This function can be bound to a specific
   * program object using @ref rtProgramCreateFromPTXString or
@@ -1298,16 +1600,16 @@ namespace optix {
   * reference return value (type \b nvrt::AAbb&). Intersection programs will
   * have a single int primitiveIndex argument. All other programs take
   * zero arguments.
-  * 
+  *
   * <B>History</B>
-  * 
+  *
   * @ref RT_PROGRAM was introduced in OptiX 1.0.
-  * 
+  *
   * <B>See also</B>
   * @ref RT_PROGRAM
   * @ref rtProgramCreateFromPTXFile
   * @ref rtProgramCreateFromPTXString
-  * 
+  *
   */
 #define RT_PROGRAM __global__
 
@@ -1333,7 +1635,7 @@ namespace optix {
  *    when loading from that pointer.  If you need to pass pointers, you should target
  *    sm_20.
  */
-   
+
 #define RT_CALLABLE_PROGRAM __device__ __noinline__
 
 
@@ -1347,12 +1649,12 @@ namespace rti_internal_callableprogram {
    * statically query to determine if we have called our function with the wrong number of
    * arguments.
    */
-     
+
   class CPArgVoid {};
   template< typename T1>
   struct is_CPArgVoid            { static const bool result = false; };
 
-  template<> 
+  template<>
   struct is_CPArgVoid<CPArgVoid> { static const bool result = true; };
 
   template< bool Condition, typename Dummy = void >
@@ -1531,7 +1833,7 @@ namespace rti_internal_callableprogram {
   };
 
   /* markedCallableProgramIdBase is the underlying class for handling bindless
-  * callable program calls with a specified call site identifier.  
+  * callable program calls with a specified call site identifier.
   * It should not be used directly, but instead the derived
   * of rtMarkedCallableProgramId should be used.
   */
@@ -1762,7 +2064,7 @@ namespace optix {
   template<typename ReturnT, typename Arg0T, typename Arg1T, typename Arg2T, typename Arg3T,
       typename Arg4T, typename Arg5T, typename Arg6T, typename Arg7T, typename Arg8T, typename Arg9T>
    class callableProgramId<ReturnT(Arg0T,Arg1T,Arg2T,Arg3T,Arg4T,Arg5T,Arg6T,Arg7T,Arg8T,Arg9T)>: RT_INTERNAL_CALLABLE_PROGRAM_DEFS(ReturnT,Arg0T,Arg1T,Arg2T,Arg3T,Arg4T,Arg5T,Arg6T,Arg7T,Arg8T,Arg9T);
-  
+
   /* RT_INTERNAL_MARKED_CALLABLE_PROGRAM_DEFS, RT_INTERNAL_MARKED_CALLABLE_PROGRAM_DEF_NO_ARG
    * and RT_INTERNAL_MARKED_CALLABLE_PROGRAM_DEF_W_ARGS are helper macros to define the body
    * of each markedCallableProgramId class.
@@ -1795,8 +2097,8 @@ namespace optix {
     typedef rti_internal_callableprogram::markedCallableProgramIdBase<ReturnT, __VA_ARGS__> baseType; \
     RT_INTERNAL_MARKED_CALLABLE_PROGRAM_DEFS \
   }
-  
-  /* markedCallableProgramId should not be used directly.  Use rtMarkedCallableProgramId 
+
+  /* markedCallableProgramId should not be used directly.  Use rtMarkedCallableProgramId
   * instead to make sure compatibility with future versions of OptiX is maintained.
   */
 
@@ -1859,7 +2161,7 @@ namespace optix {
     __device__ __forceinline__ boundCallableProgramId(const boundCallableProgramId& ); \
     __device__ __forceinline__ boundCallableProgramId& operator= (const boundCallableProgramId& ); \
   }
-  
+
   /* boundCallableProgramId should not be used directly.  Use rtCallableProgramX
    * instead to make sure compatibility with future versions of OptiX is maintained.
    */
@@ -1918,11 +2220,11 @@ namespace rti_internal_typeinfo {
 
 /**
   * @brief Callable Program ID Declaration
-  * 
+  *
   * @ingroup CUDACDeclarations
-  * 
+  *
   * <B>Description</B>
-  * 
+  *
   * @ref rtCallableProgramId declares callable program \a name, which will appear
   * to be a callable function with the specified return type and list of arguments.
   * This callable program must be matched against a
@@ -1934,17 +2236,17 @@ namespace rti_internal_typeinfo {
   *  rtDeclareVariable(rtCallableProgramId<float3(float3, float)>, modColor);
   *  rtBuffer<rtCallableProgramId<float3(float3, float)>, 1> modColors;
   *@endcode
-  * 
+  *
   * <B>History</B>
-  * 
+  *
   * @ref rtCallableProgramId was introduced in OptiX 3.6.
-  * 
+  *
   * <B>See also</B>
   * @ref rtCallableProgram
   * @ref rtCallableProgramX
   * @ref rtDeclareVariable
   * @ref rtMarkedCallableProgramId
-  * 
+  *
   */
 #define rtCallableProgramId  optix::callableProgramId
 
@@ -1961,13 +2263,13 @@ namespace rti_internal_typeinfo {
   * \a callSiteName in order to specify the set of callable programs that
   * that may be called at a specific call site. This allows to use bindless
   * callable programs that call @ref rtTrace.
-  * Callable programs that call @ref rtTrace need a different call semantic 
+  * Callable programs that call @ref rtTrace need a different call semantic
   * than programs that do not. Specifying the callable programs that may
   * potentially be called at a call site allow OptiX to determine the correct
   * call semantics at each call site.
   * Programs that are declared using @ref rtCallableProgramId may only call trace
-  * if they are used in an rtVariable or in a @ref rtBuffer of type @rtCallableProgramId.
-  * The @ref rtMarkedCallableProgram type is only available on the device and cannot
+  * if they are used in an rtVariable or in a @ref rtBuffer of type @ref rtCallableProgramId.
+  * The @ref rtMarkedCallableProgramId type is only available on the device and cannot
   * be used in an rtVariable. Objects of type @ref rtCallableProgramId can be
   * transformed into @ref rtMarkedCallableProgramId by using the appropriate constructor.
   *
@@ -2008,11 +2310,11 @@ namespace rti_internal_typeinfo {
 
 /**
   * @brief Callable Program X Declaration
-  * 
+  *
   * @ingroup CUDACDeclarations
-  * 
+  *
   * <B>Description</B>
-  * 
+  *
   * @ref rtCallableProgramX declares callable program \a name, which will appear
   * to be a callable function with the specified return type and list of arguments.
   * This callable program must be matched against a
@@ -2029,16 +2331,16 @@ namespace rti_internal_typeinfo {
   *  // With RT_USE_TEMPLATED_RTCALLABLEPROGRAM defined
   *  rtDeclareVariable(rtCallableProgram<float3(float3, float)>, modColor);
   *@endcode
-  * 
+  *
   * <B>History</B>
-  * 
+  *
   * @ref rtCallableProgramX was introduced in OptiX 3.6.
-  * 
+  *
   * <B>See also</B>
   * @ref rtCallableProgram
   * @ref rtCallableProgramId
   * @ref rtDeclareVariable
-  * 
+  *
   */
 #define rtCallableProgramX  optix::boundCallableProgramId
 
@@ -2048,18 +2350,18 @@ namespace rti_internal_typeinfo {
 
  /**
   * @brief Traces a ray
-  * 
+  *
   * @ingroup CUDACFunctions
-  * 
+  *
   * <B>Description</B>
-  * 
+  *
   * @ref rtTrace traces \a ray against object \a topNode.  A reference to
   * \a prd, the per-ray data, will be passed to all of the closest-hit and any-hit programs
   * that are executed during this invocation of trace. \a topNode must refer
   * to an OptiX object of type @ref RTgroup, @ref RTselector, @ref RTgeometrygroup or @ref RTtransform.
   *
   * The optional \a time argument sets the time of the ray for motion-aware traversal and shading.
-  * The ray time is available in user programs as the rtCurrentTime semantic variable.  
+  * The ray time is available in user programs as the rtCurrentTime semantic variable.
   * If \a time is omitted, then the ray inherits the time of the parent ray that triggered the current program.
   * In a ray generation program where there is no parent ray, the time defaults to 0.0.
   *
@@ -2077,40 +2379,63 @@ namespace rti_internal_typeinfo {
   * @param[in] flags    Ray flags
   *
   * @retval void    void return value
-  * 
+  *
   * <B>History</B>
-  * 
+  *
   * - @ref rtTrace was introduced in OptiX 1.0.
   * - \a time was introduced in OptiX 5.0.
   * - \a mask and flags were introduced in OptiX 6.0.
-  * 
+  *
   * <B>See also</B>
   * @ref rtObject
-  * @ref rtCurrentTime
+  * @ref rtDeclareVariable
   * @ref Ray
   * @ref RTrayflags
-  * 
+  *
   */
-template<class T>
-static inline __device__ void rtTrace( rtObject topNode, optix::Ray ray, T& prd, RTvisibilitymask mask=RT_VISIBILITY_ALL, RTrayflags flags=RT_RAY_FLAG_NONE )
-{
-  optix::rt_trace(*(unsigned int*)&topNode, ray.origin, ray.direction, ray.ray_type, ray.tmin, ray.tmax, mask, flags, &prd, sizeof(T));
-}
-
-/* Overload with time parameter, documented above */
 template<class T>
 static inline __device__ void rtTrace( rtObject topNode, optix::Ray ray, float time, T& prd, RTvisibilitymask mask=RT_VISIBILITY_ALL, RTrayflags flags=RT_RAY_FLAG_NONE )
 {
   optix::rt_trace_with_time(*(unsigned int*)&topNode, ray.origin, ray.direction, ray.ray_type, ray.tmin, ray.tmax, time, mask, flags, &prd, sizeof(T));
 }
 
+/* Overload without time parameter, documented above */
+template<class T>
+static inline __device__ void rtTrace( rtObject topNode, optix::Ray ray, T& prd, RTvisibilitymask mask=RT_VISIBILITY_ALL, RTrayflags flags=RT_RAY_FLAG_NONE )
+{
+  optix::rt_trace(*(unsigned int*)&topNode, ray.origin, ray.direction, ray.ray_type, ray.tmin, ray.tmax, mask, flags, &prd, sizeof(T));
+}
+
+
+/**
+  * @brief Return the entry point index of the current ray generation program
+  * @ingroup CUDACFunctions
+  *
+  * <B> Description </B>
+  *
+  * Returns the entry point index of the current ray generation program.
+  * This is useful during asynchronous launches to identify the entry point used,
+  * which is usually different when launching multiple concurrent command lists.
+  *
+  * @retval Returns the entry point index
+  *
+  * <B>History</B>
+  *
+  * @ref rtGetEntryPointIndex was introduced in OptiX 6.1
+  *
+  */
+ static inline __device__ unsigned int rtGetEntryPointIndex()
+ {
+   return optix::rt_get_entry_point_index();
+ }
+
 /**
   * @brief Determine whether a computed intersection is potentially valid
-  * 
+  *
   * @ingroup CUDACFunctions
-  * 
+  *
   * <B>Description</B>
-  * 
+  *
   * Reporting an intersection from a geometry program is a two-stage
   * process.  If the geometry program computes that the ray intersects the
   * geometry, it will first call @ref rtPotentialIntersection.
@@ -2135,15 +2460,15 @@ static inline __device__ void rtTrace( rtObject topNode, optix::Ray ray, float t
   *
   * @ref rtReportIntersection and @ref rtPotentialIntersection are valid only
   * within a geometry intersection program.
-  * 
+  *
   * @param[in] tmin  t value of the ray to be checked
   *
   * @retval  bool   Returns whether the intersection is valid or not
-  * 
+  *
   * <B>History</B>
-  * 
+  *
   * @ref rtPotentialIntersection was introduced in OptiX 1.0.
-  * 
+  *
   * <B>See also</B>
   * @ref rtGeometrySetIntersectionProgram,
   * @ref rtReportIntersection,
@@ -2156,11 +2481,11 @@ static inline __device__ bool rtPotentialIntersection( float tmin )
 
 /**
   * @brief Report an intersection with the current object and the specified material
-  * 
+  *
   * @ingroup CUDACFunctions
-  * 
+  *
   * <B>Description</B>
-  * 
+  *
   * @ref rtReportIntersection reports an intersection of the current ray
   * with the current object, and specifies the material associated with
   * the intersection.  @ref rtReportIntersection should only be used in
@@ -2171,9 +2496,9 @@ static inline __device__ bool rtPotentialIntersection( float tmin )
   *
   * @retval bool  return value, this is set to \a false if the intersection is, for some reason, ignored
   * <B>History</B>
-  * 
+  *
   * @ref rtReportIntersection was introduced in OptiX 1.0.
-  * 
+  *
   * <B>See also</B>
   * @ref rtPotentialIntersection,
   * @ref rtIgnoreIntersection
@@ -2185,11 +2510,11 @@ static inline __device__ bool rtReportIntersection( unsigned int material )
 
 /**
   * @brief Cancels the potential intersection with current ray
-  * 
+  *
   * @ingroup CUDACFunctions
-  * 
+  *
   * <B>Description</B>
-  * 
+  *
   * @ref rtIgnoreIntersection causes the current potential intersection to
   * be ignored.  This intersection will not become the new closest hit
   * associated with the ray. This function does not return, so values
@@ -2202,14 +2527,14 @@ static inline __device__ bool rtReportIntersection( unsigned int material )
   * labeled as transparent in a texture.  Since any-hit programs are called
   * frequently during intersection, care should be taken to make them as
   * efficient as possible.
-  * 
-  * 
+  *
+  *
   * @retval  void   void return value
-  * 
+  *
   * <B>History</B>
-  * 
+  *
   * @ref rtIgnoreIntersection was introduced in OptiX 1.0.
-  * 
+  *
   * <B>See also</B>
   * @ref rtTerminateRay,
   * @ref rtPotentialIntersection
@@ -2221,24 +2546,24 @@ static inline __device__ void rtIgnoreIntersection()
 
 /**
   * @brief Terminate traversal associated with the current ray
-  * 
+  *
   * @ingroup CUDACFunctions
-  * 
+  *
   * <B>Description</B>
-  * 
+  *
   * @ref rtTerminateRay causes the traversal associated with the current ray
   * to immediately terminate.  After termination, the closest-hit program
   * associated with the ray will be called.  This function does not
   * return, so values affecting the per-ray data should be applied before
   * calling @ref rtTerminateRay.  @ref rtTerminateRay is valid only within an any-hit
   * program. The value of rtIntersectionDistance is undefined when @ref rtTerminateRay is used.
-  * 
+  *
   * @retval  void   void return value
-  * 
+  *
   * <B>History</B>
-  * 
+  *
   * @ref rtTerminateRay was introduced in OptiX 1.0.
-  * 
+  *
   * <B>See also</B>
   * @ref rtIgnoreIntersection,
   * @ref rtPotentialIntersection
@@ -2250,11 +2575,11 @@ static inline __device__ void rtTerminateRay()
 
 /**
   * @brief Visit child of selector
-  * 
+  *
   * @ingroup CUDACFunctions
-  * 
+  *
   * <B>Description</B>
-  * 
+  *
   * @ref rtIntersectChild will perform intersection on the specified child
   * for the current active ray.  This is used in a selector visit program
   * to traverse one of the selector's children.  The \a index specifies
@@ -2269,15 +2594,15 @@ static inline __device__ void rtTerminateRay()
   * \a index matches the index used in @ref rtSelectorSetChild on the
   * host. @ref rtIntersectChild is valid only within a selector visit
   * program.
-  * 
+  *
   * @param[in] index  Specifies the child to perform intersection on
   *
   * @retval  void   void return value
-  * 
+  *
   * <B>History</B>
-  * 
+  *
   * @ref rtIntersectChild was introduced in OptiX 1.0.
-  * 
+  *
   * <B>See also</B>
   * @ref rtSelectorSetVisitProgram,
   * @ref rtSelectorCreate,
@@ -2290,11 +2615,11 @@ static inline __device__ void rtIntersectChild( unsigned int index )
 
 /**
   * @brief Apply the current transformation to a point
-  * 
+  *
   * @ingroup CUDACFunctions
-  * 
+  *
   * <B>Description</B>
-  * 
+  *
   * @ref rtTransformPoint transforms \a p as a point using the current
   * active transformation stack.  During traversal, intersection and
   * any-hit programs, the current ray will be located in object space.
@@ -2308,16 +2633,16 @@ static inline __device__ void rtIntersectChild( unsigned int index )
   * always be the identity transform.  For traversal, intersection,
   * any-hit and closest-hit programs, the transform will be dependent on
   * the set of active transform nodes for the current state.
-  * 
+  *
   * @param[in] kind  Type of the transform
   * @param[in] p     Point to transform
   *
   * @retval  float3   Transformed point
-  * 
+  *
   * <B>History</B>
-  * 
+  *
   * @ref rtTransformPoint was introduced in OptiX 1.0.
-  * 
+  *
   * <B>See also</B>
   * @ref rtTransformCreate,
   * @ref rtTransformVector,
@@ -2330,11 +2655,11 @@ static inline __device__ float3 rtTransformPoint( RTtransformkind kind, const fl
 
 /**
   * @brief Apply the current transformation to a vector
-  * 
+  *
   * @ingroup CUDACFunctions
-  * 
+  *
   * <B>Description</B>
-  * 
+  *
   * @ref rtTransformVector transforms \a v as a vector using the current
   * active transformation stack.  During traversal, intersection and
   * any-hit programs, the current ray will be located in object space.
@@ -2342,23 +2667,23 @@ static inline __device__ float3 rtTransformPoint( RTtransformkind kind, const fl
   * will be located in world space.  This function can be used to
   * transform the ray direction and other vectors between object and world
   * space.
-  * 
+  *
   * \a kind is an enumerated value that can be either
   * @ref RT_OBJECT_TO_WORLD or @ref RT_WORLD_TO_OBJECT and must be a constant
   * literal.  For ray generation and miss programs, the transform will
   * always be the identity transform.  For traversal, intersection,
   * any-hit and closest-hit programs, the transform will be dependent on
   * the set of active transform nodes for the current state.
-  * 
+  *
   * @param[in] kind  Type of the transform
   * @param[in] v     Vector to transform
   *
   * @retval  float3   Transformed vector
-  * 
+  *
   * <B>History</B>
-  * 
+  *
   * @ref rtTransformVector was introduced in OptiX 1.0.
-  * 
+  *
   * <B>See also</B>
   * @ref rtTransformCreate,
   * @ref rtTransformPoint,
@@ -2371,11 +2696,11 @@ static inline __device__ float3 rtTransformVector( RTtransformkind kind, const f
 
 /**
   * @brief Apply the current transformation to a normal
-  * 
+  *
   * @ingroup CUDACFunctions
-  * 
+  *
   * <B>Description</B>
-  * 
+  *
   * @ref rtTransformNormal transforms \a n as a normal using the current
   * active transformation stack (the inverse transpose).  During
   * traversal, intersection and any-hit programs, the current ray will be
@@ -2390,16 +2715,16 @@ static inline __device__ float3 rtTransformVector( RTtransformkind kind, const f
   * always be the identity transform.  For traversal, intersection,
   * any-hit and closest-hit programs, the transform will be dependent on
   * the set of active transform nodes for the current state.
-  * 
+  *
   * @param[in] kind  Type of the transform
   * @param[in] n     Normal to transform
   *
   * @retval  float3   Transformed normal
-  * 
+  *
   * <B>History</B>
-  * 
+  *
   * @ref rtTransformNormal was introduced in OptiX 1.0.
-  * 
+  *
   * <B>See also</B>
   * @ref rtTransformCreate,
   * @ref rtTransformPoint,
@@ -2412,11 +2737,11 @@ static inline __device__ float3 rtTransformNormal( RTtransformkind kind, const f
 
 /**
   * @brief Get requested transform
-  * 
+  *
   * @ingroup CUDACFunctions
-  * 
+  *
   * <B>Description</B>
-  * 
+  *
   * @ref rtGetTransform returns the requested transform in the return parameter
   * \a matrix.  The type of transform to be retrieved is specified with the
   * \a kind parameter.  \a kind is an enumerated value that can be either
@@ -2425,25 +2750,25 @@ static inline __device__ float3 rtTransformNormal( RTtransformkind kind, const f
   * located in object space.  During ray generation, closest-hit and miss programs,
   * the current ray will be located in world space.
   *
-  * There may be significant performance overhead associated with a call to 
+  * There may be significant performance overhead associated with a call to
   * @ref rtGetTransform compared to a call to @ref rtTransformPoint, @ref rtTransformVector,
   * or @ref rtTransformNormal.
-  * 
+  *
   * @param[in]    kind    The type of transform to retrieve
   * @param[out]   matrix  Return parameter for the requested transform
-  * 
+  *
   * @retval  void   void return value
-  * 
+  *
   * <B>History</B>
-  * 
+  *
   * @ref rtGetTransform was introduced in OptiX 1.0.
-  * 
+  *
   * <B>See also</B>
   * @ref rtTransformCreate,
   * @ref rtTransformPoint,
   * @ref rtTransformVector,
   * @ref rtTransformNormal
-  * 
+  *
   */
 static inline __device__ void rtGetTransform( RTtransformkind kind, float matrix[16] )
 {
@@ -2452,9 +2777,9 @@ static inline __device__ void rtGetTransform( RTtransformkind kind, float matrix
 
 /**
   * @brief Get the index of the closest hit or currently intersecting primitive
-  * 
+  *
   * @ingroup CUDACFunctions
-  * 
+  *
   * <B>Description</B>
   *
   * @ref rtGetPrimitiveIndex provides the primitive index similar to what is normally passed
@@ -2463,15 +2788,15 @@ static inline __device__ void rtGetTransform( RTtransformkind kind, float matrix
   * primitive index of the geometry (range [0;N-1] for N primitives) plus the offset.
   * This behavior is equal to what is passed to an intersection program.
   * The rtGetPrimitiveIndex semantic is available in any hit, closest hit, and intersection programs.
-  * 
+  *
   * @retval  unsigned int index of the primitive
-  * 
+  *
   * <B>History</B>
-  * 
+  *
   * @ref rtGetPrimitiveIndex was introduced in OptiX 6.0.
-  * 
+  *
   * <B>See also</B>
-  * 
+  *
   */
 static inline __device__ unsigned int rtGetPrimitiveIndex()
 {
@@ -2554,6 +2879,53 @@ static inline __device__ bool rtIsTriangleHitFrontFace()
   return optix::rt_is_triangle_hit_front_face();
 }
 
+/**
+* @brief Returns the ray flags as passed to trace
+*
+* @ingroup CUDACFunctions
+*
+* <B>Description</B>
+*
+* @ref rtGetRayFlags returns the ray flags as passed to rtTrace.
+*
+* @retval  unsigned int ray flags
+*
+* <B>History</B>
+*
+* @ref rtGetRayFlags was introduced in OptiX 6.1.
+*
+* <B>See also</B>
+* rtGetRayMask
+*
+*/
+static inline __device__ unsigned int rtGetRayFlags()
+{
+  return optix::rt_get_ray_flags();
+}
+
+/**
+* @brief Returns the ray mask as passed to trace
+*
+* @ingroup CUDACFunctions
+*
+* <B>Description</B>
+*
+* @ref rtGetRayFlags returns the ray mask as passed to rtTrace.
+*
+* @retval  unsigned int ray mask
+*
+* <B>History</B>
+*
+* @ref rtGetRayMask was introduced in OptiX 6.1.
+*
+* <B>See also</B>
+* rtGetRayFlags
+*
+*/
+static inline __device__ unsigned int rtGetRayMask()
+{
+  return optix::rt_get_ray_mask();
+}
 
 /*
    Printing
@@ -2561,11 +2933,11 @@ static inline __device__ bool rtIsTriangleHitFrontFace()
 
 /**
   * @brief Prints text to the standard output
-  * 
+  *
   * @ingroup rtPrintf
-  * 
+  *
   * <B>Description</B>
-  * 
+  *
   * @ref rtPrintf is used to output text from within user programs. Arguments are passed
   * as for the standard C \a printf function, and the same format strings are employed. The
   * only exception is the "%s" format specifier, which will generate an error if used.
@@ -2577,9 +2949,9 @@ static inline __device__ bool rtIsTriangleHitFrontFace()
   * invocations will be silently ignored.
   *
   * <B>History</B>
-  * 
+  *
   * @ref rtPrintf was introduced in OptiX 1.0.
-  * 
+  *
   * <B>See also</B>
   * @ref rtContextSetPrintEnabled,
   * @ref rtContextGetPrintEnabled,
@@ -2587,7 +2959,7 @@ static inline __device__ bool rtIsTriangleHitFrontFace()
   * @ref rtContextGetPrintBufferSize,
   * @ref rtContextSetPrintLaunchIndex,
   * @ref rtContextSetPrintLaunchIndex
-  * 
+  *
   */
   /** @{ */
 
@@ -2716,11 +3088,11 @@ namespace rti_internal_register {
 
 /**
   * @brief Throw a user exception
-  * 
+  *
   * @ingroup CUDACFunctions
-  * 
+  *
   * <B>Description</B>
-  * 
+  *
   * @ref rtThrow is used to trigger user defined exceptions which behave like built-in
   * exceptions. That is, upon invocation, ray processing for the current launch index
   * is immediately aborted and the corresponding exception program is executed. @ref rtThrow
@@ -2734,11 +3106,11 @@ namespace rti_internal_register {
   * @ref rtThrow may be called from within any program type except exception programs. Calls
   * to @ref rtThrow will be silently ignored unless user exceptions are enabled using
   * @ref rtContextSetExceptionEnabled.
-  * 
+  *
   * <B>History</B>
-  * 
+  *
   * @ref rtThrow was introduced in OptiX 1.1.
-  * 
+  *
   * <B>See also</B>
   * @ref rtContextSetExceptionEnabled,
   * @ref rtContextGetExceptionEnabled,
@@ -2747,7 +3119,7 @@ namespace rti_internal_register {
   * @ref rtGetExceptionCode,
   * @ref rtPrintExceptionDetails,
   * @ref RTexception
-  * 
+  *
   */
 static inline __device__ void rtThrow( unsigned int code )
 {
@@ -2756,22 +3128,22 @@ static inline __device__ void rtThrow( unsigned int code )
 
 /**
   * @brief Retrieves the type of a caught exception
-  * 
+  *
   * @ingroup CUDACFunctions
-  * 
+  *
   * <B>Description</B>
-  * 
+  *
   * @ref rtGetExceptionCode can be called from an exception program to query which type
   * of exception was caught. The returned code is equivalent to one of the @ref RTexception
   * constants passed to @ref rtContextSetExceptionEnabled, @ref RT_EXCEPTION_ALL excluded.
   * For user-defined exceptions, the code is equivalent to the argument passed to @ref rtThrow.
-  * 
+  *
   * @retval unsigned int  Returned exception code
-  * 
+  *
   * <B>History</B>
-  * 
+  *
   * @ref rtGetExceptionCode was introduced in OptiX 1.1.
-  * 
+  *
   * <B>See also</B>
   * @ref rtContextSetExceptionEnabled,
   * @ref rtContextGetExceptionEnabled,
@@ -2780,7 +3152,7 @@ static inline __device__ void rtThrow( unsigned int code )
   * @ref rtThrow,
   * @ref rtPrintExceptionDetails,
   * @ref RTexception
-  * 
+  *
   */
 static inline __device__ unsigned int rtGetExceptionCode()
 {
@@ -2789,22 +3161,22 @@ static inline __device__ unsigned int rtGetExceptionCode()
 
 /**
   * @brief Print information on a caught exception
-  * 
+  *
   * @ingroup CUDACFunctions
-  * 
+  *
   * <B>Description</B>
-  * 
+  *
   * @ref rtGetExceptionCode can be called from an exception program to provide information
   * on the caught exception to the user. The function uses @ref rtPrintf to output details
   * depending on the type of the exception. It is necessary to have printing enabled
   * using @ref rtContextSetPrintEnabled for this function to have any effect.
-  * 
+  *
   * @retval void  void return type
-  * 
+  *
   * <B>History</B>
-  * 
+  *
   * @ref rtPrintExceptionDetails was introduced in OptiX 1.1.
-  * 
+  *
   * <B>See also</B>
   * @ref rtContextSetExceptionEnabled,
   * @ref rtContextGetExceptionEnabled,
@@ -2815,7 +3187,7 @@ static inline __device__ unsigned int rtGetExceptionCode()
   * @ref rtThrow,
   * @ref rtPrintf,
   * @ref RTexception
-  * 
+  *
   */
 static inline __device__ void rtPrintExceptionDetails()
 {
@@ -3086,22 +3458,27 @@ static inline __device__ void rtPrintExceptionDetails()
 
 /**
   * @brief Accessor for barycentrics for built in triangle intersection
-  * 
+  *
   * @ingroup CUDACDeclarations
-  * 
+  *
   * <B>Description</B>
-  * 
+  *
   * @ref rtGetTriangleBarycentrics returns the barycentric coordinates of the intersected
   * triangle.  This function is only accessible in a program attached as an attribute
   * program to an RTgeometrytriangles object.
+  * Barycentrics are defined as follows:
+  * barycentrics.xy = (w1, w2) with w0 = 1-w1-w2 such that the attribute value 'a' for any point
+  * in the triangle is the weighted combination of the attributes at the vertices:
+  * a = w0 * a0 + w1 * a1 + w2 * a2 with a0, a1, a2 being the attributes associated with
+  * vertices v0, v1, v2 of the triangle.
   *
   * <B>History</B>
-  * 
+  *
   * - @ref rtGetTriangleBarycentrics was introduced in OptiX 6.0.
-  * 
+  *
   * <B>See also</B>
   * @ref rtGeometryTrianglesSetAttributeProgram
-  * 
+  *
   */
 
 static inline __device__ float2 rtGetTriangleBarycentrics()
@@ -3109,4 +3486,33 @@ static inline __device__ float2 rtGetTriangleBarycentrics()
   return optix::rt_get_triangle_barycentrics();
 }
 
-#endif /* __optix_optix_cuda__internal_h__ */
+/**
+  * @brief Accessor for child index
+  *
+  * @ingroup CUDACDeclarations
+  *
+  * <B>Description</B>
+  *
+  * @ref rtGetGroupChildIndex returns the current child index
+  * (often referred to as instance index) in a 2-level hierarchy.
+  * In a multi-level hierarchy, it refers to the traversed child index of the last
+  * group (group only, not to be confused with a geometry group) when traversing the
+  * hierarchy top to bottom.
+  * In other words, the index equals the i'th child of the
+  * last group on the path through the scene graph from root to primitive.
+  *
+  * <B>History</B>
+  *
+  * - @ref rtGetGroupChildIndex was introduced in OptiX 6.1.
+  *
+  * <B>See also</B>
+  * @ref rtGetPrimitiveIndex()
+  *
+  */
+
+static inline __device__ unsigned int rtGetGroupChildIndex()
+{
+  return optix::rt_get_lowest_group_child_index();
+}
+
+#endif /* __optix_optix_device_h__ */
