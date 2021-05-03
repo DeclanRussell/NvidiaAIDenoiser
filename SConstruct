@@ -7,7 +7,7 @@ CUDA_INCLUDE_PATH = os.environ['CUDA_PATH'] + "/include"
 
 ENV = Environment(CPPPATH = ['.', "./contrib/optix/include", "./contrib/OpenImageIO/include", CUDA_INCLUDE_PATH
 ],
-                  CCFLAGS="-std=c++11")
+                  CCFLAGS="-std=c++11 /EHsc")
 
 # Used for debbugging
 if int(DEBUG):
