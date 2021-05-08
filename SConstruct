@@ -3,9 +3,12 @@ import os
 PLATFORM = Platform()
 DEBUG = ARGUMENTS.get("debug", 0)
 
-CUDA_INCLUDE_PATH = os.environ['CUDA_PATH'] + "/include"
+CUDA_PATH = os.environ['CUDA_PATH']
+CUDA_INCLUDE_PATH = CUDA_PATH + "/include"
+OPTIX_PATH = "C:/ProgramData/NVIDIA Corporation/OptiX SDK 7.3.0"
+OPTIX_INCLUDE_PATH = OPTIX_PATH + "/include"
 
-ENV = Environment(CPPPATH = ['.', "./contrib/optix/include", "./contrib/OpenImageIO/include", CUDA_INCLUDE_PATH
+ENV = Environment(CPPPATH = ['.', OPTIX_INCLUDE_PATH, "./contrib/OpenImageIO/include", CUDA_INCLUDE_PATH
 ],
                   CCFLAGS="-std=c++11 /EHsc")
 
@@ -19,21 +22,20 @@ LIBPATH = []
 if PLATFORM.name == "darwin":
     LIBPATH.append("/usr/local/lib")
 if PLATFORM.name == "win32":
-    LIBPATH.append("./contrib/optix/bin")
     LIBPATH.append("./contrib/OpenImageIO/lib")
-    
+    LIBPATH.append(CUDA_PATH + "/lib/x64")
+
 
 LIBS = []
-LIBS.append("optix.6.5.0")
 LIBS.append("OpenImageIO")
+LIBS.append("cudart_static")
+if PLATFORM.name == "win32":
+    LIBS.append("Cfgmgr32")
 
 LINKFLAGS = []
 
 if PLATFORM.name == "win32":
     ENV.Append(CPPDEFINES = "NOMINMAX")
-
-# Copy over the OptiX dlls to the bin directory
-ENV.Command("bin/optix.6.5.0.dll", "./contrib/optix/bin/optix.6.5.0.dll", Copy("$TARGET", "$SOURCE"))
 
 # Copy all of OIIO many dependancies!
 ENV.Command("bin/boost_atomic-vc141-mt-x64-1_67.dll", "./contrib/OpenImageIO/bin/boost_atomic-vc141-mt-x64-1_67.dll", Copy("$TARGET", "$SOURCE"))

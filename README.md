@@ -1,11 +1,8 @@
 # NVidia AI Denoiser command line tool
 
-This is a simple implementation of NVidia AI denoiser. You can find a pre-built windows distribution either on my website [here](https://declanrussell.com/portfolio/nvidia-ai-denoiser/) or in the releases tab of this repro. To build you will need to download optix 6.5.0 and copy over the following to contrib/optix/bin as they were too big for the repo,
-* optix.6.5.0.dll
+This is a simple implementation of NVidia AI denoiser. You can find a pre-built windows distribution either on my website [here](https://declanrussell.com/portfolio/nvidia-ai-denoiser/) or in the releases tab of this repro. To build you will need to install the CUDA took availible from [here](https://developer.nvidia.com/cuda-downloads) and the OptiX 7.3 SDK availible [here](https://developer.nvidia.com/designworks/optix/download).
 
-These libraries will also need to be copied to the bin directory or add them to your path to run the app. The scons build will copy the required dlls from the contrib to the bin for you. You may also need to update your driver as I did.
-
-You will require an Nvidia driver of at least 436.02 or higher and an Nvidia GPU of Maxwell architecture or newer to use the optix denoiser.
+**You will require an Nvidia driver of at least 465.84 or higher and an Nvidia GPU of Maxwell architecture or newer to use the OptiX denoiser.**
 
 ## Usage
 Command line parameters
@@ -15,7 +12,6 @@ Command line parameters
 * -n [string] : path to input normal AOV (optional, requires albedo AOV) 
 * -b [float] : blend amount (default 0) 
 * -hdr [int] : Use HDR training data (default 1)
-* -maxmem [int] : Maximum memory size used by the denoiser in MB
 * -repeat [int] : Execute the denoiser N times. Useful for profiling.
 * -h/--help : Lists command line parameters
 
