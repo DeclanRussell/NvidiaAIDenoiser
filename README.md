@@ -50,4 +50,4 @@ cmd /k
 ```
 
 # Licence info
-This has no licence, do whatever you want with it just don't sue me if it breaks something!
+This licence has an MIT licence.
