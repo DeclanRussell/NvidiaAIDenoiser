@@ -24,10 +24,18 @@
 #define DENOISER_MAJOR_VERSION 3
 #define DENOISER_MINOR_VERSION 0
 
+// Simple struct to hold information about our images
+struct ImageInfo
+{
+    std::string filename;
+    OIIO::ImageBuf* data;
+};
+
 // Our global image handles
-OIIO::ImageBuf* g_input_beauty = nullptr;
-OIIO::ImageBuf* g_input_albedo = nullptr;
-OIIO::ImageBuf* g_input_normal = nullptr;
+ImageInfo g_input_beauty;
+ImageInfo g_input_albedo;
+ImageInfo g_input_normal;
+std::vector<ImageInfo> g_input_aov;
 
 // Logging verbosity level
 int g_verbosity = 2;
@@ -43,9 +51,12 @@ OptixFunctionTable g_api;
 
 void cleanup()
 {
-    if (g_input_beauty) delete g_input_beauty;
-    if (g_input_albedo) delete g_input_albedo;
-    if (g_input_normal) delete g_input_normal;
+    if (g_input_beauty.data) delete g_input_beauty.data;
+    if (g_input_albedo.data) delete g_input_albedo.data;
+    if (g_input_normal.data) delete g_input_normal.data;
+    for (auto& i: g_input_aov)
+        if (i.data)
+            delete i.data;
 }
 
 std::string getTime()
@@ -68,7 +79,15 @@ void PrintInfo(char *c, Args... args)
         return;
     char buffer[256];
     sprintf(buffer, c, args...);
-    std::cout<<getTime()<<"       | "<<buffer<<std::endl;
+    std::cout<<getTime()<<"         | "<<buffer<<std::endl;
+}
+
+template<typename... Args>
+void PrintWarning(char *c, Args... args)
+{
+    char buffer[256];
+    sprintf(buffer, c, args...);
+    std::cerr<<getTime()<<" WARNING | "<<buffer<<std::endl;
 }
 
 template<typename... Args>
@@ -76,7 +95,7 @@ void PrintError(char *c, Args... args)
 {
     char buffer[256];
     sprintf(buffer, c, args...);
-    std::cerr<<getTime()<<" ERROR | "<<buffer<<std::endl;
+    std::cerr<<getTime()<<" ERROR   | "<<buffer<<std::endl;
 }
 
 #ifdef _WIN32
@@ -303,6 +322,17 @@ OptixResult initOptiXFunctionTable()
     return optixQueryFunctionTable(OPTIX_ABI_VERSION, 0, 0, 0, &g_api, sizeof(OptixFunctionTable));
 }
 
+inline void imageConvertFormat(float* in_ptr, uint8_t in_size, float* out_ptr, uint8_t out_size, unsigned int width, unsigned int height)
+{
+    for (unsigned int y=0; y<height; y++)
+    for (unsigned int x=0; x<width; x++)
+    {
+        memcpy(out_ptr, in_ptr, sizeof(float) * in_size);
+        out_ptr += out_size;
+        in_ptr += in_size;
+    }
+}
+
 void printParams()
 {
     // Always print parameters if needed
@@ -311,7 +341,9 @@ void printParams()
     PrintInfo("Command line parameters");
     PrintInfo("-v [int]      : log verbosity level 0:disabled 1:simple 2:full (default 2)");
     PrintInfo("-i [string]   : path to input image");
-    PrintInfo("-o [string]   : path to output image");
+    PrintInfo("-aov [string] : path to additional input AOV image to denoise");
+    PrintInfo("-o [string]   : path to output image **depricated please use -os**");
+    PrintInfo("-os [string]  : output suffix appended to input filename to create output image filename");
     PrintInfo("-a [string]   : path to input albedo AOV (optional)");
     PrintInfo("-n [string]   : path to input normal AOV (optional, requires albedo AOV)");
     PrintInfo("-b [float]    : blend amount (default 0)");
@@ -321,7 +353,7 @@ void printParams()
     g_verbosity = old_verbosity;
 }
 
-bool DiscoverDevices()
+bool discoverDevices()
 {
     //Lets test some cuda stuff
     int device_count = 0;
@@ -366,7 +398,7 @@ int main(int argc, char *argv[])
     PrintInfo("Launching Nvidia AI Denoiser command line app v%d.%d", DENOISER_MAJOR_VERSION, DENOISER_MINOR_VERSION);
     PrintInfo("Created by Declan Russell (25/12/2017 ~ Merry Christmas!)");
 
-    if (!DiscoverDevices())
+    if (!discoverDevices())
         exitfunc(EXIT_FAILURE);
 
     OptixResult result = initOptiXFunctionTable();
@@ -383,10 +415,12 @@ int main(int argc, char *argv[])
 
     // Pass our command line args
     std::string out_path;
+    std::string out_suffix;
     float blend = 0.f;
     unsigned int hdr = 1;
     unsigned int selected_device_id = 0;
     unsigned int num_runs = 1;
+    bool denoise_aovs = false;
     if (argc == 1)
     {
         printParams();
@@ -398,11 +432,11 @@ int main(int argc, char *argv[])
         if (arg == "-i")
         {
             i++;
-            std::string path( argv[i] );
+            g_input_beauty.filename = std::string( argv[i] );
             if (g_verbosity >= 2)
-                PrintInfo("Input image: %s", path.c_str());
-            g_input_beauty = new OIIO::ImageBuf(path);
-            if (g_input_beauty->init_spec(path, 0, 0))
+                PrintInfo("Input image: %s", g_input_beauty.filename.c_str());
+            g_input_beauty.data = new OIIO::ImageBuf(g_input_beauty.filename);
+            if (g_input_beauty.data->init_spec(g_input_beauty.filename, 0, 0))
             {
                 if (g_verbosity >= 2)
                     PrintInfo("Loaded successfully");
@@ -411,7 +445,31 @@ int main(int argc, char *argv[])
             else
             {
                 PrintError("Failed to load input image");
-                PrintError("[OIIO]: %s", g_input_beauty->geterror().c_str());
+                PrintError("[OIIO]: %s", g_input_beauty.data->geterror().c_str());
+                cleanup();
+                exitfunc(EXIT_FAILURE);
+            }
+        }
+        if (arg == "-aov")
+        {
+            i++;
+            ImageInfo info;
+            info.filename = std::string( argv[i] );
+            if (g_verbosity >= 2)
+                PrintInfo("Additional AOV image: %s", info.filename.c_str());
+            info.data = new OIIO::ImageBuf(info.filename);
+            if (info.data->init_spec(info.filename, 0, 0))
+            {
+                if (g_verbosity >= 2)
+                    PrintInfo("Loaded successfully");
+                b_loaded = true;
+                g_input_aov.push_back(info);
+                denoise_aovs = true;
+            }
+            else
+            {
+                PrintError("Failed to AOV input image");
+                PrintError("[OIIO]: %s", info.data->geterror().c_str());
                 cleanup();
                 exitfunc(EXIT_FAILURE);
             }
@@ -419,11 +477,11 @@ int main(int argc, char *argv[])
         else if (arg == "-n")
         {
             i++;
-            std::string path( argv[i] );
+            g_input_normal.filename = std::string( argv[i] );
             if (g_verbosity >= 2)
-                PrintInfo("Normal image: %s", path.c_str());
-            g_input_normal = new OIIO::ImageBuf(path);
-            if (g_input_normal->init_spec(path, 0, 0))
+                PrintInfo("Normal image: %s", g_input_normal.filename.c_str());
+            g_input_normal.data = new OIIO::ImageBuf(g_input_normal.filename);
+            if (g_input_normal.data->init_spec(g_input_normal.filename, 0, 0))
             {
                 if (g_verbosity >= 2)
                     PrintInfo("Loaded successfully");
@@ -432,7 +490,7 @@ int main(int argc, char *argv[])
             else
             {
                 PrintError("Failed to load normal image");
-                PrintError("[OIIO]: %s", g_input_normal->geterror().c_str());
+                PrintError("[OIIO]: %s", g_input_normal.data->geterror().c_str());
                 cleanup();
                 exitfunc(EXIT_FAILURE);
             }
@@ -440,11 +498,11 @@ int main(int argc, char *argv[])
         else if (arg == "-a")
         {
             i++;
-            std::string path( argv[i] );
+            g_input_albedo.filename = std::string( argv[i] );
             if (g_verbosity >= 2)
-                PrintInfo("Albedo image: %s", path.c_str());
-            g_input_albedo = new OIIO::ImageBuf(path);
-            if (g_input_albedo->init_spec(path, 0, 0))
+                PrintInfo("Albedo image: %s", g_input_albedo.filename.c_str());
+            g_input_albedo.data = new OIIO::ImageBuf(g_input_albedo.filename);
+            if (g_input_albedo.data->init_spec(g_input_albedo.filename, 0, 0))
             {
                 if (g_verbosity >= 2)
                     PrintInfo("Loaded successfully");
@@ -453,7 +511,7 @@ int main(int argc, char *argv[])
             else
             {
                 PrintError("Failed to load albedo image");
-                PrintError("[OIIO]: %s", g_input_albedo->geterror().c_str());
+                PrintError("[OIIO]: %s", g_input_albedo.data->geterror().c_str());
                 cleanup();
                 exitfunc(EXIT_FAILURE);
             }
@@ -461,9 +519,17 @@ int main(int argc, char *argv[])
         else if(arg == "-o")
         {
             i++;
+            PrintWarning("-o is depreicated. Please use -os instead.");
             out_path = std::string( argv[i] );
             if (g_verbosity >= 2)
                 PrintInfo("Output image: %s", out_path.c_str());
+        }
+        else if(arg == "-os")
+        {
+            i++;
+            out_suffix = std::string( argv[i] );
+            if (g_verbosity >= 2)
+                PrintInfo("Output suffix: %s", out_suffix.c_str());
         }
         else if (arg == "-b")
         {
@@ -530,26 +596,38 @@ int main(int argc, char *argv[])
     }
 
     // Check for a file extension
-    int x = (int)out_path.find_last_of(".");
-    x++;
-    const char* ext_c = out_path.c_str()+x;
-    std::string ext(ext_c);
-    if (!ext.size())
+    if (!out_path.empty())
     {
-        PrintError("No output file extension");
+        int ext_loc = (int)out_path.find_last_of(".");
+        ext_loc++;
+        const char* ext_c = out_path.c_str()+ext_loc;
+        std::string ext(ext_c);
+        if (!ext.size())
+        {
+            PrintError("No output file extension");
+            cleanup();
+            exitfunc(EXIT_FAILURE);
+        }
+    }
+
+    // If no output path then we need an suffix for the new file
+    if (out_path.empty() && out_suffix.empty())
+    {
+        PrintError("No output suffix set");
         cleanup();
         exitfunc(EXIT_FAILURE);
     }
 
+
     OIIO::ROI beauty_roi, albedo_roi, normal_roi;
-    beauty_roi = OIIO::get_roi_full(g_input_beauty->spec());
+    beauty_roi = OIIO::get_roi_full(g_input_beauty.data->spec());
     int b_width = beauty_roi.width();
     int b_height = beauty_roi.height();
     if (a_loaded)
     {
-        albedo_roi = OIIO::get_roi_full(g_input_albedo->spec());
+        albedo_roi = OIIO::get_roi_full(g_input_albedo.data->spec());
         if (n_loaded)
-            normal_roi = OIIO::get_roi_full(g_input_normal->spec());
+            normal_roi = OIIO::get_roi_full(g_input_normal.data->spec());
     }
 
     // Check that our feature buffers are the same resolution as our beauty
@@ -577,9 +655,20 @@ int main(int argc, char *argv[])
         }
     }
 
-    // Get our pixel data
+    for (auto& a : g_input_aov)
+    {
+        OIIO::ROI aov_roi = OIIO::get_roi_full(a.data->spec());
+        if (aov_roi.width() != b_width || aov_roi.height() != b_height)
+        {
+            PrintError("AOV image %s not same resolution as beauty", a.filename.c_str());
+            cleanup();
+            exitfunc(EXIT_FAILURE);
+        }
+    }
+
+    // Allocate space for our pixel data
     std::vector<float> beauty_pixels(b_width * b_height * beauty_roi.nchannels());
-    g_input_beauty->get_pixels(beauty_roi, OIIO::TypeDesc::FLOAT, &beauty_pixels[0]);
+    std::vector<std::vector<float> > aov_pixels(g_input_aov.size());
 
     // Catch optix exceptions
     try
@@ -615,6 +704,8 @@ int main(int argc, char *argv[])
         // Iniitalize the OptiX denoiser
         OptixDenoiser optix_denoiser = nullptr;
         OptixDenoiserModelKind model = (hdr) ? OPTIX_DENOISER_MODEL_KIND_HDR : OPTIX_DENOISER_MODEL_KIND_LDR;
+        if (denoise_aovs)
+            model = OPTIX_DENOISER_MODEL_KIND_AOV;
         OPTIX_CHECK( g_api.optixDenoiserCreate(optix_context, model, &denoiser_options, &optix_denoiser) );
         // Compute memory needed for the denoiser to exist on the GPU
         OptixDenoiserSizes denoiser_sizes;
@@ -638,94 +729,36 @@ int main(int argc, char *argv[])
         denoiser_params.blendFactor = blend;
         CU_CHECK(cudaMalloc((void**)&denoiser_params.hdrIntensity, sizeof(float)));
 
-        // Create our GPU buffers and load our image data into them
-        void* beauty_buffer = nullptr;
-        void* albedo_buffer = nullptr;
-        void* normal_buffer = nullptr;
-        void* out_buffer    = nullptr;
-        CU_CHECK(cudaMalloc(&beauty_buffer, sizeof(float) * 4 * b_width * b_height));
-        CU_CHECK(cudaMalloc(&out_buffer   , sizeof(float) * 4 * b_width * b_height));
-        if (a_loaded)
-            CU_CHECK(cudaMalloc(&albedo_buffer, sizeof(float) * 4 * a_width * a_height));
-        if (n_loaded)
-            CU_CHECK(cudaMalloc(&normal_buffer, sizeof(float) * 4 * n_width * n_height));
-
-        unsigned int buffer_size = 4 * b_width * b_height;
-        std::vector<float> host_scratch(buffer_size, 0.f);
-        float* ptr = (float*)&host_scratch[0];
-        unsigned int pixel_idx = 0;
-        for(unsigned int y=0; y<b_height; y++)
-        for(unsigned int x=0; x<b_width; x++)
-        {
-            memcpy(ptr, &beauty_pixels[pixel_idx], sizeof(float) * beauty_roi.nchannels());
-            ptr += 4;
-            pixel_idx += beauty_roi.nchannels();
-        }
-        // Copy our data to the GPU
-        CU_CHECK(cudaMemcpy(beauty_buffer, &host_scratch[0], sizeof(float) * buffer_size, cudaMemcpyHostToDevice));
-        ptr = nullptr;
-
-        if (a_loaded)
-        {
-            std::vector<float> albedo_pixels(a_width * a_height * albedo_roi.nchannels());
-            g_input_albedo->get_pixels(albedo_roi, OIIO::TypeDesc::FLOAT, &albedo_pixels[0]);
-            memset(&host_scratch[0], 0, sizeof(float) * buffer_size);
-            ptr = (float*)&host_scratch[0];
-            pixel_idx = 0;
-            for(unsigned int y=0; y<a_height; y++)
-            for(unsigned int x=0; x<a_width; x++)
-            {
-                memcpy(ptr, &albedo_pixels[pixel_idx], sizeof(float) * albedo_roi.nchannels());
-                ptr += 4;
-                pixel_idx += albedo_roi.nchannels();
-            }
-            // Copy our data to the GPU
-            CU_CHECK(cudaMemcpy(albedo_buffer, &host_scratch[0], sizeof(float) * buffer_size, cudaMemcpyHostToDevice));
-            ptr = nullptr;
-        }
-
-        if (n_loaded)
-        {
-            std::vector<float> normal_pixels(n_width * n_height * normal_roi.nchannels());
-            g_input_normal->get_pixels(normal_roi, OIIO::TypeDesc::FLOAT, &normal_pixels[0]);
-            memset(&host_scratch[0], 0, sizeof(float) * buffer_size);
-            ptr = (float*)&host_scratch[0];
-            pixel_idx = 0;
-            for(unsigned int y=0; y<n_height; y++)
-            for(unsigned int x=0; x<n_width; x++)
-            {
-                memcpy(ptr, &normal_pixels[pixel_idx], sizeof(float) * normal_roi.nchannels());
-                ptr += 4;
-                pixel_idx += normal_roi.nchannels();
-            }
-            // Copy our data to the GPU
-            CU_CHECK(cudaMemcpy(normal_buffer, &host_scratch[0], sizeof(float) * buffer_size, cudaMemcpyHostToDevice));
-            ptr = nullptr;
-        }
-
         // Create and set our OptiX layers
-        OptixDenoiserLayer layer       = {};
-        // Input
-        layer.input.data               = (CUdeviceptr)beauty_buffer;
-        layer.input.width              = b_width;
-        layer.input.height             = b_height;
-        layer.input.rowStrideInBytes   = b_width * sizeof(float) * 4;
-        layer.input.pixelStrideInBytes = sizeof(float) * 4;
-        layer.input.format             = OPTIX_PIXEL_FORMAT_FLOAT4;
+        std::vector<OptixDenoiserLayer> layers(1 + g_input_aov.size());
+        memset (&layers[0], 0, sizeof(OptixDenoiserLayer) * layers.size());
 
-        // Output
-        layer.output.data               = (CUdeviceptr)out_buffer;
-        layer.output.width              = b_width;
-        layer.output.height             = b_height;
-        layer.output.rowStrideInBytes   = b_width * sizeof(float) * 4;
-        layer.output.pixelStrideInBytes = sizeof(float) * 4;
-        layer.output.format             = OPTIX_PIXEL_FORMAT_FLOAT4;
+        // Allocate memory for all our layers on the GPU
+        for (auto& l : layers)
+        {
+            // Input
+            CU_CHECK(cudaMalloc(&((void*)l.input.data), sizeof(float) * 4 * b_width * b_height));
+            l.input.width              = b_width;
+            l.input.height             = b_height;
+            l.input.rowStrideInBytes   = b_width * sizeof(float) * 4;
+            l.input.pixelStrideInBytes = sizeof(float) * 4;
+            l.input.format             = OPTIX_PIXEL_FORMAT_FLOAT4;
+
+            // Output
+            CU_CHECK(cudaMalloc(&((void*)l.output.data), sizeof(float) * 4 * b_width * b_height));
+            l.output.width              = b_width;
+            l.output.height             = b_height;
+            l.output.rowStrideInBytes   = b_width * sizeof(float) * 4;
+            l.output.pixelStrideInBytes = sizeof(float) * 4;
+            l.output.format             = OPTIX_PIXEL_FORMAT_FLOAT4;
+        }
 
         OptixDenoiserGuideLayer guide_layer = {};
         // albedo
         if (a_loaded)
         {
-            guide_layer.albedo.data               = (CUdeviceptr)albedo_buffer;
+            CU_CHECK(cudaMalloc(&((void*)guide_layer.albedo.data), sizeof(float) * 4 * b_width * b_height));
+            // guide_layer.albedo.data               = (CUdeviceptr)albedo_buffer;
             guide_layer.albedo.width              = a_width;
             guide_layer.albedo.height             = a_height;
             guide_layer.albedo.rowStrideInBytes   = a_width * sizeof(float) * 4;
@@ -736,7 +769,8 @@ int main(int argc, char *argv[])
         // normal
         if (n_loaded)
         {
-            guide_layer.normal.data               = (CUdeviceptr)normal_buffer;
+            CU_CHECK(cudaMalloc(&((void*)guide_layer.normal.data), sizeof(float) * 4 * b_width * b_height));
+            // guide_layer.normal.data               = (CUdeviceptr)normal_buffer;
             guide_layer.normal.width              = n_width;
             guide_layer.normal.height             = n_height;
             guide_layer.normal.rowStrideInBytes   = n_width * sizeof(float) * 4;
@@ -744,20 +778,71 @@ int main(int argc, char *argv[])
             guide_layer.normal.format             = OPTIX_PIXEL_FORMAT_FLOAT4;
         }
 
-        // Execute denoise
+        unsigned int buffer_size = 4 * b_width * b_height;
+        std::vector<float> host_scratch(buffer_size, 0.f);
+
+        // Copy our beauty image data to the GPU
+        // Convert image to float4 to use with the denoiser
+        g_input_beauty.data->get_pixels(beauty_roi, OIIO::TypeDesc::FLOAT, &beauty_pixels[0]);
+        imageConvertFormat(&beauty_pixels[0], beauty_roi.nchannels(), &host_scratch[0], 4, b_width, b_height);
+        // Copy our data to the GPU
+        // First layer must always be beauty AOV
+        CU_CHECK(cudaMemcpy((void*)layers[0].input.data, &host_scratch[0], sizeof(float) * buffer_size, cudaMemcpyHostToDevice));
+
+        if (a_loaded)
+        {
+            // Copy albedo image data to the GPU
+            std::vector<float> albedo_pixels(a_width * a_height * albedo_roi.nchannels());
+            g_input_albedo.data->get_pixels(albedo_roi, OIIO::TypeDesc::FLOAT, &albedo_pixels[0]);
+            memset(&host_scratch[0], 0, sizeof(float) * buffer_size);
+            // Convert image to float4 to use with the denoiser
+            imageConvertFormat(&albedo_pixels[0], albedo_roi.nchannels(), &host_scratch[0], 4, a_width, a_height);
+            // Copy our data to the GPU
+            CU_CHECK(cudaMemcpy((void*)guide_layer.albedo.data, &host_scratch[0], sizeof(float) * buffer_size, cudaMemcpyHostToDevice));
+        }
+
+        if (n_loaded)
+        {
+            // Copy normal image data to the GPU
+            std::vector<float> normal_pixels(n_width * n_height * normal_roi.nchannels());
+            g_input_normal.data->get_pixels(normal_roi, OIIO::TypeDesc::FLOAT, &normal_pixels[0]);
+            memset(&host_scratch[0], 0, sizeof(float) * buffer_size);
+            // Convert image to float4 to use with the denoiser
+            imageConvertFormat(&normal_pixels[0], normal_roi.nchannels(), &host_scratch[0], 4, n_width, n_height);
+            // Copy our data to the GPU
+            CU_CHECK(cudaMemcpy((void*)guide_layer.normal.data, &host_scratch[0], sizeof(float) * buffer_size, cudaMemcpyHostToDevice));
+        }
+
+        // Any additional AOVs that need to be denoised
+        int aov = 1;
+        for (auto& a : g_input_aov)
+        {
+            // Copy normal image data to the GPU
+            OIIO::ROI aov_roi = OIIO::get_roi_full(a.data->spec());
+            aov_pixels[aov - 1] = std::vector<float>(albedo_roi.width() * albedo_roi.height() * aov_roi.nchannels());
+            a.data->get_pixels(aov_roi, OIIO::TypeDesc::FLOAT, &aov_pixels[aov - 1][0]);
+            memset(&host_scratch[0], 0, sizeof(float) * buffer_size);
+            // Convert image to float4 to use with the denoiser
+            imageConvertFormat(&aov_pixels[aov - 1][0], aov_roi.nchannels(), &host_scratch[0], 4, albedo_roi.width(), albedo_roi.height());
+            // Copy our data to the GPU
+            CU_CHECK(cudaMemcpy((void*)layers[aov].input.data, &host_scratch[0], sizeof(float) * buffer_size, cudaMemcpyHostToDevice));
+            aov++;
+        }
+
+        // Execute denoiser
         int sum = 0;
         for (unsigned int i = 0; i < num_runs; i++)
         {
             PrintInfo("Denoising...");
             clock_t start = clock(), diff;
             // Compute the intensity of the input image
-            OPTIX_CHECK( g_api.optixDenoiserComputeIntensity(optix_denoiser, cuda_stream, &layer.input, denoiser_params.hdrIntensity,
+            OPTIX_CHECK( g_api.optixDenoiserComputeIntensity(optix_denoiser, cuda_stream, &layers[0].input, denoiser_params.hdrIntensity,
                                                             (CUdeviceptr)denoiser_scratch_buffer, denoiser_sizes.withoutOverlapScratchSizeInBytes) );
 
             // Execute the denoiser
             OPTIX_CHECK( g_api.optixDenoiserInvoke(optix_denoiser, cuda_stream, &denoiser_params,
                                                 (CUdeviceptr)denoiser_state_buffer, denoiser_sizes.stateSizeInBytes,
-                                                &guide_layer, &layer, 1 /*num input layers*/, 0, 0,
+                                                &guide_layer, &layers[0], layers.size(), 0, 0,
                                                 (CUdeviceptr)denoiser_scratch_buffer, denoiser_sizes.withoutOverlapScratchSizeInBytes) );
             diff = clock() - start;
             int msec = diff * 1000 / CLOCKS_PER_SEC;
@@ -773,25 +858,35 @@ int main(int argc, char *argv[])
             PrintInfo("Denoising avg of %d complete in %d.%03d seconds", num_runs, sum/1000, sum%1000);
         }
 
-        // Copy denoised image back to the cpu
-        CU_CHECK(cudaMemcpy(&host_scratch[0], out_buffer, sizeof(float) * buffer_size, cudaMemcpyDeviceToHost));
-        ptr = (float*)&host_scratch[0];
-        pixel_idx = 0;
-        for(unsigned int y=0; y<b_height; y++)
-        for(unsigned int x=0; x<b_width; x++)
+        // Copy denoised images back to the CPU
+        unsigned int num_layers = layers.size();
+        for (unsigned int i = 0; i < num_layers; i++)
         {
-            memcpy(&beauty_pixels[pixel_idx], ptr, sizeof(float) * beauty_roi.nchannels());
-            ptr += 4;
-            pixel_idx += beauty_roi.nchannels();
+            std::vector<float>& output = (i == 0) ? beauty_pixels : aov_pixels[0];
+            unsigned int num_channels = 0;
+            if (i == 0)
+            {
+                num_channels = beauty_roi.nchannels();
+            }
+            else
+            {
+                OIIO::ROI aov_roi = OIIO::get_roi_full(g_input_aov[i - 1].data->spec());
+                num_channels = aov_roi.nchannels();
+            }
+            CU_CHECK(cudaMemcpy(&host_scratch[0], (void*)layers[i].output.data, sizeof(float) * buffer_size, cudaMemcpyDeviceToHost));
+            imageConvertFormat(&host_scratch[0], 4, &output[0], num_channels, b_width, b_height);
         }
-        ptr = nullptr;
+
 
         // Remove our gpu buffers
+        for (auto& l : layers)
+        {
+            CU_CHECK(cudaFree((void*)l.input.data));
+            CU_CHECK(cudaFree((void*)l.output.data));
+        }
         CU_CHECK(cudaFree((void*)denoiser_params.hdrIntensity));
-        CU_CHECK(cudaFree(beauty_buffer));
-        CU_CHECK(cudaFree(albedo_buffer));
-        CU_CHECK(cudaFree(normal_buffer));
-        CU_CHECK(cudaFree(out_buffer   ));
+        CU_CHECK(cudaFree((void*)guide_layer.albedo.data));
+        CU_CHECK(cudaFree((void*)guide_layer.normal.data));
         // Destroy the denoiser
         CU_CHECK(cudaFree(denoiser_state_buffer));
         CU_CHECK(cudaFree(denoiser_scratch_buffer));
@@ -814,19 +909,52 @@ int main(int argc, char *argv[])
     remove(out_path.c_str());
 
     // Set our OIIO pixels
-    if (!g_input_beauty->set_pixels(beauty_roi, OIIO::TypeDesc::FLOAT, &beauty_pixels[0]))
-        PrintError("Something went wrong setting pixels");
+    if (!g_input_beauty.data->set_pixels(beauty_roi, OIIO::TypeDesc::FLOAT, &beauty_pixels[0]))
+        PrintError("Something went wrong setting pixels of file %s", g_input_beauty.filename.c_str());
 
     // Save the output image
-    PrintInfo("Saving to: %s", out_path.c_str());
-    if (g_input_beauty->write(out_path))
-        PrintInfo("Done!");
+    if (!out_suffix.empty())
+    {
+        if (out_path.empty())
+            out_path = g_input_beauty.filename;
+        int ext_loc = (int)out_path.find_last_of(".");
+        const char* ext_c = out_path.c_str()+ext_loc;
+        std::string ext(ext_c);
+        out_path = out_path.substr(0, ext_loc) + out_suffix + ext_c;
+    }
+    if (g_input_beauty.data->write(out_path))
+        PrintInfo("Written out: %s", out_path.c_str());
     else
     {
         PrintError("Could not save file %s", out_path.c_str());
-        PrintError("[OIIO]: %s", g_input_beauty->geterror().c_str());
+        PrintError("[OIIO]: %s", g_input_beauty.data->geterror().c_str());
     }
 
+    // Save all the additional AOVs that have been denoised
+    int aov = 0;
+    for (auto& a : g_input_aov)
+    {
+        // Set our OIIO pixels
+        OIIO::ROI aov_roi = OIIO::get_roi_full(a.data->spec());
+        if (!a.data->set_pixels(aov_roi, OIIO::TypeDesc::FLOAT, &aov_pixels[aov][0]))
+            PrintError("Something went wrong setting pixels of file %s", a.filename.c_str());
+        out_path = a.filename;
+        int ext_loc = (int)out_path.find_last_of(".");
+        const char* ext_c = out_path.c_str()+ext_loc;
+        std::string ext(ext_c);
+        out_path = out_path.substr(0, ext_loc) + out_suffix + ext_c;
+
+        if (a.data->write(out_path))
+            PrintInfo("Written out: %s", out_path.c_str());
+        else
+        {
+            PrintError("Could not save file %s", out_path.c_str());
+            PrintError("[OIIO]: %s", a.data->geterror().c_str());
+        }
+        aov++;
+    }
+
+    PrintInfo("Done!");
     cleanup();
     exitfunc(EXIT_SUCCESS);
 }
