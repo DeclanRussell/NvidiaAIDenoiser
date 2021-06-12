@@ -14,7 +14,7 @@ ENV = Environment(CPPPATH = ['.', OPTIX_INCLUDE_PATH, "./contrib/OpenImageIO/inc
 
 # Used for debbugging
 if int(DEBUG):
-    ENV.Append(CCFLAGS=' -ggdb3')
+    ENV.Append(CCFLAGS=' -ggdb3 /DEBUG /Z7')
 
 SOURCES = Glob("src/*.cpp")
 
@@ -33,6 +33,8 @@ if PLATFORM.name == "win32":
     LIBS.append("Cfgmgr32")
 
 LINKFLAGS = []
+if int(DEBUG):
+    LINKFLAGS = ['-ggdb3', '/DEBUG', '/Z7']
 
 if PLATFORM.name == "win32":
     ENV.Append(CPPDEFINES = "NOMINMAX")
