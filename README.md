@@ -49,5 +49,5 @@ for /r %%v in (*.%FILE_EXTENSION%) do %PATH_TO_DENOISER%\Denoiser.exe -i "%%~nv.
 cmd /k
 ```
 
-# Licence info
-This licence has an MIT licence.
+# License info
+This project is shared under the [MIT License](https://mit-license.org/).
