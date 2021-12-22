@@ -75,7 +75,7 @@ std::string getTime()
 }
 
 template<typename... Args>
-void PrintInfo(char *c, Args... args)
+void PrintInfo(const char *c, Args... args)
 {
     if (!g_verbosity)
         return;
@@ -85,7 +85,7 @@ void PrintInfo(char *c, Args... args)
 }
 
 template<typename... Args>
-void PrintWarning(char *c, Args... args)
+void PrintWarning(const char *c, Args... args)
 {
     char buffer[256];
     sprintf(buffer, c, args...);
@@ -93,7 +93,7 @@ void PrintWarning(char *c, Args... args)
 }
 
 template<typename... Args>
-void PrintError(char *c, Args... args)
+void PrintError(const char *c, Args... args)
 {
     char buffer[256];
     sprintf(buffer, c, args...);
