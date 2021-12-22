@@ -1,5 +1,7 @@
 
 #include <optix.h>
+#include <optix_stubs.h>
+#include <optix_function_table_definition.h>
 #include <cuda_runtime.h>
 #include <iostream>
 #include <iomanip>
@@ -17,10 +19,6 @@
 #ifdef _WIN32
 #include <windows.h>
 #include <winternl.h>
-// The cfgmgr32 header is necessary for interrogating driver information in the registry.
-#include <cfgmgr32.h>
-#else
-#include <dlfcn.h>
 #endif
 
 #define DENOISER_MAJOR_VERSION 3
@@ -48,9 +46,6 @@ std::chrono::high_resolution_clock::time_point g_app_start_time;
 
 // Device count
 std::vector<cudaDeviceProp> g_device_props;
-
-// OptiX function table
-OptixFunctionTable g_api;
 
 void cleanup()
 {
@@ -165,166 +160,6 @@ inline void optixCheckReportError(OptixResult result, char const *const func, co
 // that a OptiX host call returns an error
 #define OPTIX_CHECK(val) optixCheckReportError((val), #val, __FILE__, __LINE__)
 
-// The following windows optix loading utility was taken from Nvidia's OptiX
-// examples at https://github.com/NVIDIA/OptiX_Apps/blob/master/apps/intro_denoiser/src/Application.cpp
-#ifdef _WIN32
-// Code based on helper function in optix_stubs.h
-static void* optixLoadWindowsDll(void)
-{
-    const char* optixDllName = "nvoptix.dll";
-    void* handle = NULL;
-
-    // Get the size of the path first, then allocate
-    unsigned int size = GetSystemDirectoryA(NULL, 0);
-    if (size == 0)
-    {
-        // Couldn't get the system path size, so bail
-        return NULL;
-    }
-
-    size_t pathSize = size + 1 + strlen(optixDllName);
-    char*  systemPath = (char*) malloc(pathSize);
-
-    if (GetSystemDirectoryA(systemPath, size) != size - 1)
-    {
-        // Something went wrong
-        free(systemPath);
-        return NULL;
-    }
-
-    strcat(systemPath, "\\");
-    strcat(systemPath, optixDllName);
-
-    handle = LoadLibraryA(systemPath);
-
-    free(systemPath);
-
-    if (handle)
-    {
-        return handle;
-    }
-
-    // If we didn't find it, go looking in the register store.  Since nvoptix.dll doesn't
-    // have its own registry entry, we are going to look for the OpenGL driver which lives
-    // next to nvoptix.dll. 0 (null) will be returned if any errors occured.
-
-    static const char* deviceInstanceIdentifiersGUID = "{4d36e968-e325-11ce-bfc1-08002be10318}";
-    const ULONG        flags = CM_GETIDLIST_FILTER_CLASS | CM_GETIDLIST_FILTER_PRESENT;
-    ULONG              deviceListSize = 0;
-
-    if (CM_Get_Device_ID_List_SizeA(&deviceListSize, deviceInstanceIdentifiersGUID, flags) != CR_SUCCESS)
-    {
-        return NULL;
-    }
-
-    char* deviceNames = (char*) malloc(deviceListSize);
-
-    if (CM_Get_Device_ID_ListA(deviceInstanceIdentifiersGUID, deviceNames, deviceListSize, flags))
-    {
-        free(deviceNames);
-        return NULL;
-    }
-
-    DEVINST devID = 0;
-
-    // Continue to the next device if errors are encountered.
-    for (char* deviceName = deviceNames; *deviceName; deviceName += strlen(deviceName) + 1)
-    {
-      if (CM_Locate_DevNodeA(&devID, deviceName, CM_LOCATE_DEVNODE_NORMAL) != CR_SUCCESS)
-      {
-          continue;
-      }
-
-      HKEY regKey = 0;
-      if (CM_Open_DevNode_Key(devID, KEY_QUERY_VALUE, 0, RegDisposition_OpenExisting, &regKey, CM_REGISTRY_SOFTWARE) != CR_SUCCESS)
-      {
-          continue;
-      }
-
-      const char* valueName = "OpenGLDriverName";
-      DWORD       valueSize = 0;
-
-      LSTATUS     ret = RegQueryValueExA(regKey, valueName, NULL, NULL, NULL, &valueSize);
-      if (ret != ERROR_SUCCESS)
-      {
-          RegCloseKey(regKey);
-          continue;
-      }
-
-      char* regValue = (char*) malloc(valueSize);
-      ret = RegQueryValueExA(regKey, valueName, NULL, NULL, (LPBYTE) regValue, &valueSize);
-      if (ret != ERROR_SUCCESS)
-      {
-          free(regValue);
-          RegCloseKey(regKey);
-          continue;
-      }
-
-      // Strip the OpenGL driver dll name from the string then create a new string with
-      // the path and the nvoptix.dll name
-      for (int i = valueSize - 1; i >= 0 && regValue[i] != '\\'; --i)
-      {
-          regValue[i] = '\0';
-      }
-
-      size_t newPathSize = strlen(regValue) + strlen(optixDllName) + 1;
-      char*  dllPath = (char*) malloc(newPathSize);
-      strcpy(dllPath, regValue);
-      strcat(dllPath, optixDllName);
-
-      free(regValue);
-      RegCloseKey(regKey);
-
-      handle = LoadLibraryA((LPCSTR) dllPath);
-      free(dllPath);
-
-      if (handle)
-      {
-          break;
-      }
-    }
-
-    free(deviceNames);
-
-    return handle;
-}
-#endif
-
-// The following windows optix function table loading utility was taken from Nvidia's OptiX
-// examples at https://github.com/NVIDIA/OptiX_Apps/blob/master/apps/intro_denoiser/src/Application.cpp
-OptixResult initOptiXFunctionTable()
-{
-#ifdef _WIN32
-    void* handle = optixLoadWindowsDll();
-    if (!handle)
-    {
-        return OPTIX_ERROR_LIBRARY_NOT_FOUND;
-    }
-
-    void* symbol = reinterpret_cast<void*>(GetProcAddress((HMODULE) handle, "optixQueryFunctionTable"));
-    if (!symbol)
-    {
-        return OPTIX_ERROR_ENTRY_SYMBOL_NOT_FOUND;
-    }
-#else
-    void* handle = dlopen("libnvoptix.so.1", RTLD_NOW);
-    if (!handle)
-    {
-        return OPTIX_ERROR_LIBRARY_NOT_FOUND;
-    }
-
-    void* symbol = dlsym(handle, "optixQueryFunctionTable");
-    if (!symbol)
-    {
-        return OPTIX_ERROR_ENTRY_SYMBOL_NOT_FOUND;
-    }
-#endif
-
-    OptixQueryFunctionTable_t* optixQueryFunctionTable = reinterpret_cast<OptixQueryFunctionTable_t*>(symbol);
-
-    return optixQueryFunctionTable(OPTIX_ABI_VERSION, 0, 0, 0, &g_api, sizeof(OptixFunctionTable));
-}
-
 inline void imageConvertFormat(float* in_ptr, uint8_t in_size, float* out_ptr, uint8_t out_size, unsigned int width, unsigned int height)
 {
     for (unsigned int y=0; y<height; y++)
@@ -405,7 +240,7 @@ int main(int argc, char *argv[])
     if (!discoverDevices())
         exitfunc(EXIT_FAILURE);
 
-    OptixResult result = initOptiXFunctionTable();
+    OptixResult result = optixInit();
     if (result != OPTIX_SUCCESS)
     {
         // TODO: It would be nice to get the actual error string here, but how do
@@ -732,10 +567,10 @@ int main(int argc, char *argv[])
     // Initialize our optix context
     CUcontext cuCtx = 0; // Zero means take the current context
     OptixDeviceContext optix_context = nullptr;
-    result = g_api.optixDeviceContextCreate(cuCtx, nullptr, &optix_context);
+    result = optixDeviceContextCreate(cuCtx, nullptr, &optix_context);
     if (result != OPTIX_SUCCESS)
     {
-        PrintError("Could not create OptiX context: (%d) %s", result, g_api.optixGetErrorName(result));
+        PrintError("Could not create OptiX context: (%d) %s", result, optixGetErrorName(result));
         cleanup();
         exitfunc(EXIT_FAILURE);
     }
@@ -750,18 +585,18 @@ int main(int argc, char *argv[])
     OptixDenoiserModelKind model = (hdr) ? OPTIX_DENOISER_MODEL_KIND_HDR : OPTIX_DENOISER_MODEL_KIND_LDR;
     if (denoise_aovs)
         model = OPTIX_DENOISER_MODEL_KIND_AOV;
-    OPTIX_CHECK( g_api.optixDenoiserCreate(optix_context, model, &denoiser_options, &optix_denoiser) );
+    OPTIX_CHECK( optixDenoiserCreate(optix_context, model, &denoiser_options, &optix_denoiser) );
     // Compute memory needed for the denoiser to exist on the GPU
     OptixDenoiserSizes denoiser_sizes;
     memset(&denoiser_sizes, 0, sizeof(OptixDenoiserSizes));
-    OPTIX_CHECK( g_api.optixDenoiserComputeMemoryResources(optix_denoiser, b_width, b_height, &denoiser_sizes) );
+    OPTIX_CHECK( optixDenoiserComputeMemoryResources(optix_denoiser, b_width, b_height, &denoiser_sizes) );
     // Allocate this space on the GPu
     void* denoiser_state_buffer = nullptr;
     void* denoiser_scratch_buffer = nullptr;
     CU_CHECK(cudaMalloc(&denoiser_state_buffer, denoiser_sizes.stateSizeInBytes));
     CU_CHECK(cudaMalloc(&denoiser_scratch_buffer, denoiser_sizes.withoutOverlapScratchSizeInBytes));
     // Setup the denoiser
-    OPTIX_CHECK( g_api.optixDenoiserSetup(optix_denoiser, cuda_stream,
+    OPTIX_CHECK( optixDenoiserSetup(optix_denoiser, cuda_stream,
                                             b_width, b_height,
                                             (CUdeviceptr)denoiser_state_buffer,   denoiser_sizes.stateSizeInBytes,
                                             (CUdeviceptr)denoiser_scratch_buffer, denoiser_sizes.withoutOverlapScratchSizeInBytes) );
@@ -881,11 +716,11 @@ int main(int argc, char *argv[])
         PrintInfo("Denoising...");
         clock_t start = clock(), diff;
         // Compute the intensity of the input image
-        OPTIX_CHECK( g_api.optixDenoiserComputeIntensity(optix_denoiser, cuda_stream, &layers[0].input, denoiser_params.hdrIntensity,
+        OPTIX_CHECK( optixDenoiserComputeIntensity(optix_denoiser, cuda_stream, &layers[0].input, denoiser_params.hdrIntensity,
                                                         (CUdeviceptr)denoiser_scratch_buffer, denoiser_sizes.withoutOverlapScratchSizeInBytes) );
 
         // Execute the denoiser
-        OPTIX_CHECK( g_api.optixDenoiserInvoke(optix_denoiser, cuda_stream, &denoiser_params,
+        OPTIX_CHECK( optixDenoiserInvoke(optix_denoiser, cuda_stream, &denoiser_params,
                                             (CUdeviceptr)denoiser_state_buffer, denoiser_sizes.stateSizeInBytes,
                                             &guide_layer, &layers[0], layers.size(), 0, 0,
                                             (CUdeviceptr)denoiser_scratch_buffer, denoiser_sizes.withoutOverlapScratchSizeInBytes) );
@@ -937,9 +772,9 @@ int main(int argc, char *argv[])
     // Destroy the denoiser
     CU_CHECK(cudaFree(denoiser_state_buffer));
     CU_CHECK(cudaFree(denoiser_scratch_buffer));
-    OPTIX_CHECK( g_api.optixDenoiserDestroy(optix_denoiser) );
+    OPTIX_CHECK( optixDenoiserDestroy(optix_denoiser) );
     // Destroy the OptiX context
-    OPTIX_CHECK( g_api.optixDeviceContextDestroy(optix_context) );
+    OPTIX_CHECK( optixDeviceContextDestroy(optix_context) );
     // Delete our CUDA stream as well
     CU_CHECK(cudaStreamDestroy(cuda_stream));
 
