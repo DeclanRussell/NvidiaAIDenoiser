@@ -8,14 +8,14 @@ This is a simple implementation of NVidia AI denoiser. You can find a pre-built 
 Command line parameters
 * -i [string] : path to input image
 * -o [string] : path to output image
-* -a [string] : path to input albedo AOV (optional) 
-* -n [string] : path to input normal AOV (optional, requires albedo AOV) 
-* -b [float] : blend amount (default 0) 
+* -a [string] : path to input albedo AOV (optional)
+* -n [string] : path to input normal AOV (optional, requires albedo AOV)
+* -b [float] : blend amount (default 0)
 * -hdr [int] : Use HDR training data (default 1)
 * -repeat [int] : Execute the denoiser N times. Useful for profiling.
 * -h/--help : Lists command line parameters
 
-You need to at least have an input and output for the app to run. If you also have them, you can add an albedo AOV or albedo and normal AOVs to improve the denoising. All images should be the same resolutions, not meeting this requirement will lead to unexpected results (likely a crash). 
+You need to at least have an input and output for the app to run. If you also have them, you can add an albedo AOV or albedo and normal AOVs to improve the denoising. All images should be the same resolutions, not meeting this requirement will lead to unexpected results (likely a crash).
 
 For best results provide as many of the AOVs as possible to the denoiser. Generally the more information the denoiser has to work with the better. The denoiser also prefers images rendered with a box filter or by using FIS.
 
