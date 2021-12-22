@@ -661,7 +661,13 @@ int main(int argc, char *argv[])
     // Iniitalize the OptiX denoiser
     OptixDenoiser optix_denoiser = nullptr;
     OptixDenoiserModelKind model = (hdr) ? OPTIX_DENOISER_MODEL_KIND_HDR : OPTIX_DENOISER_MODEL_KIND_LDR;
-    // TODO: add error checking for if both of these cases exist
+    // TODO: supprt temporal AOV denoising
+    if (denoise_aovs && pi_loaded)
+    {
+        PrintError("Temporal AOV denoising not yet supported");
+        cleanup();
+        exitfunc(EXIT_FAILURE);
+    }
     if (denoise_aovs)
         model = OPTIX_DENOISER_MODEL_KIND_AOV;
     if (pi_loaded)
