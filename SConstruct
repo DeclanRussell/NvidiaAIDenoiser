@@ -5,7 +5,7 @@ DEBUG = ARGUMENTS.get("debug", 0)
 
 CUDA_PATH = os.environ['CUDA_PATH']
 CUDA_INCLUDE_PATH = CUDA_PATH + "/include"
-OPTIX_PATH = "C:/ProgramData/NVIDIA Corporation/OptiX SDK 7.4.0"
+OPTIX_PATH = "C:/ProgramData/NVIDIA Corporation/OptiX SDK 7.6.0"
 OPTIX_INCLUDE_PATH = OPTIX_PATH + "/include"
 
 ENV = Environment(CPPPATH = ['.', OPTIX_INCLUDE_PATH, "./contrib/OpenImageIO/include", CUDA_INCLUDE_PATH
