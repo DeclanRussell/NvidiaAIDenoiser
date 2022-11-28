@@ -691,7 +691,11 @@ int main(int argc, char *argv[])
     // Set the denoiser parameters
     OptixDenoiserParams denoiser_params = {};
     // TODO: Expose option for this
+#if OPTIX_VERSION >= 70600
     denoiser_params.denoiseAlpha = OptixDenoiserAlphaMode(0);
+#else
+    denoiser_params.denoiseAlpha = 0;
+#endif
     denoiser_params.blendFactor = blend;
     CU_CHECK(cudaMalloc((void**)&denoiser_params.hdrIntensity, sizeof(float)));
 
