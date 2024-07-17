@@ -1,8 +1,17 @@
 # NVidia AI Denoiser command line tool
 
-This is a simple implementation of NVidia AI denoiser. You can find a pre-built windows distribution either on my website [here](https://declanrussell.com/portfolio/nvidia-ai-denoiser/) or in the releases tab of this repro. To build you will need to install the CUDA took availible from [here](https://developer.nvidia.com/cuda-downloads) and the OptiX 7.3 SDK availible [here](https://developer.nvidia.com/designworks/optix/download).
+This is a simple implementation of NVidia AI denoiser. You can find a pre-built windows distribution either on my website [here](https://declanrussell.com/portfolio/nvidia-ai-denoiser/) or in the releases tab of this repro. To build you will need to install the CUDA took availible from [here](https://developer.nvidia.com/cuda-downloads) and the OptiX 7/8 SDK availible [here](https://developer.nvidia.com/designworks/optix/download).
 
 **You will require an Nvidia driver of at least 465.84 or higher and an Nvidia GPU of Maxwell architecture or newer to use the OptiX denoiser.**
+
+## Building on Ubuntu/Debian
+You need to set the `OPTIX80_PATH` environment variable, which is your OptiX SDK Path(eg /home/rabbit/NVIDIA-OptiX-SDK-8.0.0-linux64-x86_64).
+```
+sudo apt install -y openimageio-tools
+mkdir build && cd build
+cmake ..
+make
+```
 
 ## Usage
 Command line parameters
