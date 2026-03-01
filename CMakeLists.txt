@@ -5,13 +5,16 @@ set(CMAKE_CXX_STANDARD 17)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR}/cmake)
 
-find_package(OptiX80)
 # Add CUDA
-find_package(CUDAToolkit 12.0 REQUIRED)
-find_package(OpenImageIO REQUIRED)
+find_package(CUDA 12.0 REQUIRED)
+
+
+add_subdirectory(contrib/OpenImageIO)
 
 # Include directories
-include_directories(${OPTIX80_INCLUDE_DIR} ${CUDAToolkit_INCLUDE_DIRS})
+include_directories("contrib/optix/include"
+                    "contrib/OpenImageIO/include"
+                    ${CUDAToolkit_INCLUDE_DIRS})
 
 # Source files
 set(SOURCES src/main.cpp)
@@ -20,4 +23,4 @@ set(SOURCES src/main.cpp)
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 # Link libraries
-target_link_libraries(${PROJECT_NAME} ${OIIO_LIBRARY} CUDA::cudart)
+target_link_libraries(${PROJECT_NAME} CUDA_cudart_static_LIBRARY)

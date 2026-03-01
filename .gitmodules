@@ -1,0 +1,3 @@
+[submodule "contrib/optix"]
+	path = contrib/optix
+	url = https://github.com/NVIDIA/optix-dev.git
