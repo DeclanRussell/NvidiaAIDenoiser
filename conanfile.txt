@@ -1,0 +1,12 @@
+[requires]
+openimageio/[>=2.4 <4]
+
+[generators]
+CMakeDeps
+CMakeToolchain
+
+[layout]
+cmake_layout
+
+[options]
+openimageio/*:shared=False

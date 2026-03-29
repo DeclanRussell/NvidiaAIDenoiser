@@ -4,13 +4,14 @@ This is a simple implementation of NVidia AI denoiser. You can find a pre-built 
 
 **You will require an Nvidia driver of at least 465.84 or higher and an Nvidia GPU of Maxwell architecture or newer to use the OptiX denoiser.**
 
-## Building on Ubuntu/Debian
-You need to set the `OPTIX80_PATH` environment variable, which is your OptiX SDK Path(eg /home/rabbit/NVIDIA-OptiX-SDK-8.0.0-linux64-x86_64).
+## Building
 ```
-sudo apt install -y openimageio-tools
-mkdir build && cd build
-cmake ..
-make
+python3 -m pip install conan
+conan profile detect --force
+conan install . --build=missing -s:h compiler.cppstd=20 -s:b compiler.cppstd=20
+cmake -S . -B build -DCMAKE_POLICY_DEFAULT_CMP0091=NEW -DCMAKE_TOOLCHAIN_FILE=build/generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=./out
+cmake --build build --config Release
+cmake --install build --config Release
 ```
 
 ## Usage
