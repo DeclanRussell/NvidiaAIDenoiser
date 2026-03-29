@@ -5,6 +5,8 @@
 #include <optix_function_table_definition.h>
 #include <cuda_runtime.h>
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <iomanip>
 #include <OpenImageIO/imageio.h>
 #include <OpenImageIO/imagebuf.h>
@@ -42,6 +44,14 @@ ImageInfo g_input_normal;
 ImageInfo g_input_motion_vectors;
 std::unordered_map<int, ImageInfo> g_input_aov;
 
+// Previous frame denoiser-internal data, given on the command line. It is a binary file
+// written by the denoiser (-oid).
+std::stringstream prev_internal_data;
+std::string prev_internal_data_filename;
+
+// Output filename for denoiser-internal data (-oid).
+std::string output_internal_data_filename;
+
 // Logging verbosity level
 int g_verbosity = 2;
 
@@ -60,6 +70,7 @@ void cleanup()
     for (auto& i: g_input_aov)
         if (i.second.data)
             delete i.second.data;
+    prev_internal_data.str("");
 }
 
 std::string getTime()
@@ -192,6 +203,8 @@ void printParams()
     PrintInfo("-a [string]      : path to input albedo AOV (optional)");
     PrintInfo("-n [string]      : path to input normal AOV (optional, requires albedo AOV)");
     PrintInfo("-mv [string]     : path to motion vector AOV (optional, required for temporal denoising)");
+    PrintInfo("-pid [string]    : path to prevoius denoiser-internal per-frame data (optional, required for temporal denoising)");
+    PrintInfo("-oid [string]    : path to current denoiser-internal per-frame data (optional, required for temporal denoising)");
     PrintInfo("-b [float]       : blend amount (default 0)");
     PrintInfo("-hdr [int]       : Use HDR training data (default 1)");
     PrintInfo("-gpu [int]       : Select which GPU to use for denoising (default 0)");
@@ -256,8 +269,8 @@ int main(int argc, char *argv[])
         exitfunc(EXIT_FAILURE);
     }
 
-    bool b_loaded, n_loaded, a_loaded, mv_loaded, pi_loaded;
-    b_loaded = n_loaded = a_loaded = mv_loaded = pi_loaded = false;
+    bool b_loaded, n_loaded, a_loaded, mv_loaded, pi_loaded, pid_loaded;
+    b_loaded = n_loaded = a_loaded = mv_loaded = pi_loaded = pid_loaded = false;
 
     // Pass our command line args
     std::string out_suffix;
@@ -315,6 +328,32 @@ int main(int argc, char *argv[])
                 cleanup();
                 exitfunc(EXIT_FAILURE);
             }
+        }
+        else if (arg == "-pid")
+        {
+            i++;
+            prev_internal_data_filename = std::string(argv[i]);
+            if (g_verbosity >= 2)
+                PrintInfo("Previous denoiser-internal data: %s", prev_internal_data_filename.c_str());
+            std::ifstream file(prev_internal_data_filename.c_str(), std::ios::binary);
+            if (file.good())
+            {
+                prev_internal_data << file.rdbuf();
+                pid_loaded = true;
+            }
+            else
+            {
+                PrintError("Failed to load previous denoiser-internal data");
+                cleanup();
+                exitfunc(EXIT_FAILURE);
+            }
+        }
+        else if (arg == "-oid")
+        {
+            i++;
+            output_internal_data_filename = std::string(argv[i]);
+            if (g_verbosity >= 2)
+                PrintInfo("Current frame denoiser-internal data: %s", output_internal_data_filename.c_str());
         }
         else if (arg.find("-aov") != std::string::npos)
         {
@@ -671,8 +710,11 @@ int main(int argc, char *argv[])
     }
     if (denoise_aovs)
         model = OPTIX_DENOISER_MODEL_KIND_AOV;
+
+    // If denoiser-internal data are read or written we select kernel-prediction mode. Otherwise use the
+    // obsolete direct prediction which does not require denoiser-internal data between frames.
     if (pi_loaded)
-        model = OPTIX_DENOISER_MODEL_KIND_TEMPORAL;
+        model = pid_loaded || !output_internal_data_filename.empty() ? OPTIX_DENOISER_MODEL_KIND_TEMPORAL_AOV : OPTIX_DENOISER_MODEL_KIND_TEMPORAL;
     OPTIX_CHECK( optixDenoiserCreate(optix_context, model, &denoiser_options, &optix_denoiser) );
     // Compute memory needed for the denoiser to exist on the GPU
     OptixDenoiserSizes denoiser_sizes;
@@ -700,7 +742,11 @@ int main(int argc, char *argv[])
     denoiser_params.denoiseAlpha = 0;
 #endif
     denoiser_params.blendFactor = blend;
-    CU_CHECK(cudaMalloc((void**)&denoiser_params.hdrIntensity, sizeof(float)));
+
+    // When motion vectors are given on the command line we assume this is not the first frame in a sequence.
+    // For the first frame motion vectors are not given (initialized to zero in device memory).
+    // The previous-denoised image for the first frame should be the first noisy image in a sequence.
+    denoiser_params.temporalModeUsePreviousLayers = mv_loaded;
 
     // Create and set our OptiX layers
     std::vector<OptixDenoiserLayer> layers(1 + g_input_aov.size());
@@ -764,14 +810,39 @@ int main(int argc, char *argv[])
     }
 
     // motion vectors
-    if (mv_loaded)
+    // if not given on the command line, assume it is the first frame and set them to zero (no motion)
+    // assume temporal mode if previous denoised image is given
+    if (mv_loaded || pi_loaded)
     {
         CU_CHECK(cudaMalloc(((void**)&guide_layer.flow.data), sizeof(float) * 2 * b_width * b_height));
-        guide_layer.flow.width              = mv_width;
-        guide_layer.flow.height             = mv_height;
-        guide_layer.flow.rowStrideInBytes   = mv_width * sizeof(float) * 2;
+        guide_layer.flow.width              = b_width;
+        guide_layer.flow.height             = b_height;
+        guide_layer.flow.rowStrideInBytes   = b_width * sizeof(float) * 2;
         guide_layer.flow.pixelStrideInBytes = sizeof(float) * 2;
         guide_layer.flow.format             = OPTIX_PIXEL_FORMAT_FLOAT2;
+        if (!mv_loaded)
+            CU_CHECK(cudaMemset((void*)guide_layer.flow.data, 0, sizeof(float) * 2 * b_width * b_height));
+    }
+
+    // Set up denoiser-internal data for temporal denoising. Assume temporal mode if previous denoised image is given.
+    if (pi_loaded)
+    {
+        size_t internal_size = b_width * b_height * denoiser_sizes.internalGuideLayerPixelSizeInBytes;
+
+        guide_layer.previousOutputInternalGuideLayer.width  = b_width;
+        guide_layer.previousOutputInternalGuideLayer.height = b_height;
+        guide_layer.previousOutputInternalGuideLayer.pixelStrideInBytes = unsigned(denoiser_sizes.internalGuideLayerPixelSizeInBytes);
+        guide_layer.previousOutputInternalGuideLayer.rowStrideInBytes = guide_layer.previousOutputInternalGuideLayer.width * guide_layer.previousOutputInternalGuideLayer.pixelStrideInBytes;
+        guide_layer.previousOutputInternalGuideLayer.format = OPTIX_PIXEL_FORMAT_INTERNAL_GUIDE_LAYER;
+
+        // Allocate device memory for internal guide layer data
+        CU_CHECK(cudaMalloc(((void**)&guide_layer.previousOutputInternalGuideLayer.data), internal_size));
+
+        // Clear for first frame use. Might be overwritten with saved internal data (-pid).
+        CU_CHECK(cudaMemset((void*)guide_layer.previousOutputInternalGuideLayer.data, 0, internal_size));
+
+        guide_layer.outputInternalGuideLayer = guide_layer.previousOutputInternalGuideLayer;
+        CU_CHECK(cudaMalloc(((void**)&guide_layer.outputInternalGuideLayer.data), internal_size));
     }
 
     unsigned int buffer_size = 4 * b_width * b_height;
@@ -795,6 +866,13 @@ int main(int argc, char *argv[])
         // Copy our data to the GPU
         // First layer must always be beauty AOV
         CU_CHECK(cudaMemcpy((void*)layers[0].previousOutput.data, &host_scratch[0], sizeof(float) * buffer_size, cudaMemcpyHostToDevice));
+    }
+
+    // Copy previous denoiser-internal data to the GPU
+    if (pid_loaded)
+    {
+        size_t internal_size = b_width * b_height * denoiser_sizes.internalGuideLayerPixelSizeInBytes;
+        CU_CHECK(cudaMemcpy((void*)guide_layer.previousOutputInternalGuideLayer.data, (void*)prev_internal_data.str().c_str(), internal_size, cudaMemcpyHostToDevice));
     }
 
     if (a_loaded)
@@ -857,9 +935,6 @@ int main(int argc, char *argv[])
     {
         PrintInfo("Denoising...");
         clock_t start = clock(), diff;
-        // Compute the intensity of the input image
-        OPTIX_CHECK( optixDenoiserComputeIntensity(optix_denoiser, cuda_stream, &layers[0].input, denoiser_params.hdrIntensity,
-                                                        (CUdeviceptr)denoiser_scratch_buffer, denoiser_sizes.withoutOverlapScratchSizeInBytes) );
 
         // Execute the denoiser
         OPTIX_CHECK( optixDenoiserInvoke(optix_denoiser, cuda_stream, &denoiser_params,
@@ -901,6 +976,24 @@ int main(int argc, char *argv[])
         imageConvertFormat(&host_scratch[0], 4, &output[0], num_channels, b_width, b_height);
     }
 
+    // Copy internal data back to the CPU
+    if (!output_internal_data_filename.empty())
+    {
+        size_t internal_size = b_width * b_height * denoiser_sizes.internalGuideLayerPixelSizeInBytes;
+        std::vector<char> idata(internal_size);
+        CU_CHECK(cudaMemcpy((void*)&idata[0], (void*)guide_layer.outputInternalGuideLayer.data, internal_size, cudaMemcpyDeviceToHost));
+
+        std::ofstream file( output_internal_data_filename.c_str(), std::ios::binary);
+        if (file.is_open())
+        {
+            file.write(&idata[0], internal_size);
+            PrintInfo("Wrote denoiser-internal data: %s", output_internal_data_filename.c_str());
+        }
+        else
+        {
+            PrintError(" Could not save file %s", output_internal_data_filename.c_str());
+        }
+    }
 
     // Remove our gpu buffers
     for (auto& l : layers)
@@ -909,10 +1002,11 @@ int main(int argc, char *argv[])
         CU_CHECK(cudaFree((void*)l.previousOutput.data));
         CU_CHECK(cudaFree((void*)l.output.data));
     }
-    CU_CHECK(cudaFree((void*)denoiser_params.hdrIntensity));
     CU_CHECK(cudaFree((void*)guide_layer.albedo.data));
     CU_CHECK(cudaFree((void*)guide_layer.normal.data));
     CU_CHECK(cudaFree((void*)guide_layer.flow.data));
+    CU_CHECK(cudaFree((void*)guide_layer.previousOutputInternalGuideLayer.data));
+    CU_CHECK(cudaFree((void*)guide_layer.outputInternalGuideLayer.data));
     // Destroy the denoiser
     CU_CHECK(cudaFree(denoiser_state_buffer));
     CU_CHECK(cudaFree(denoiser_scratch_buffer));

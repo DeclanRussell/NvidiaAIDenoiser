@@ -16,13 +16,23 @@ cmake --install build --config Release
 
 ## Usage
 Command line parameters
-* -i [string] : path to input image
-* -o [string] : path to output image
-* -a [string] : path to input albedo AOV (optional)
-* -n [string] : path to input normal AOV (optional, requires albedo AOV)
-* -b [float] : blend amount (default 0)
-* -hdr [int] : Use HDR training data (default 1)
-* -repeat [int] : Execute the denoiser N times. Useful for profiling.
+* Command line parameters
+* -v [int]         : log verbosity level 0:disabled 1:simple 2:full (default 2)
+* -i [string]      : path to input image
+* -pi [string]     : path previous denoised result (optional, required for temporal denoising)
+* -aov%d [string]  : path to additional input AOV image to denoise
+* -oaov%d [string] : path to additional AOV output image to denoise
+* -o [string]      : path to output image
+* -os [string]     : output suffix appended to input filename to create output image filename
+* -a [string]      : path to input albedo AOV (optional)
+* -n [string]      : path to input normal AOV (optional, requires albedo AOV)
+* -mv [string]     : path to motion vector AOV (optional, required for temporal denoising)
+* -pid [string]    : path to prevoius denoiser-internal per-frame data (optional, required for temporal denoising)
+* -oid [string]    : path to current denoiser-internal per-frame data (optional, required for temporal denoising)
+* -b [float]       : blend amount (default 0)
+* -hdr [int]       : Use HDR training data (default 1)
+* -gpu [int]       : Select which GPU to use for denoising (default 0)
+* -repeat [int]    : Execute the denoiser N times. Useful for profiling.
 * -h/--help : Lists command line parameters
 
 You need to at least have an input and output for the app to run. If you also have them, you can add an albedo AOV or albedo and normal AOVs to improve the denoising. All images should be the same resolutions, not meeting this requirement will lead to unexpected results (likely a crash).
